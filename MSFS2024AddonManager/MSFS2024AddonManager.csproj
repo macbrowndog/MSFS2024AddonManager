@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FontAwesome.Sharp.Pro" Version="6.6.0" />
+    <PackageReference Include="Krypton.Toolkit" Version="105.26.7.201" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Assets\" />
+    <Folder Include="Controls\" />
+    <Folder Include="Forms\" />
+    <Folder Include="Helpers\" />
+    <Folder Include="Models\" />
+    <Folder Include="Themes\" />
+    <Folder Include="Services\" />
+    <Folder Include="Resources\" />
+  </ItemGroup>
+
+</Project>
