@@ -1,4 +1,4 @@
-using MSFS2024AddonManager.Services;
+using MSFS2024AddonManager.UI.Themes;
 
 namespace MSFS2024AddonManager;
 

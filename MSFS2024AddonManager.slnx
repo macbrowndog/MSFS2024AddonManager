@@ -1,6 +1,0 @@
-<Solution>
-  <Project Path="MAFS2024AddonManger.core/MSFSS2024AddonManger.core.csproj" Id="4cf94d13-f4a7-4684-94a5-557ff993272d" />
-  <Project Path="MSFAAddonManger.Services/MSFS2024AddonManger.Services.csproj" Id="e544d22f-bc25-4d5a-b96e-ce2a4b8bdc96" />
-  <Project Path="MSFS2024AddonManager.Tests/MSFS2024AddonManager.Tests.csproj" Id="8bc850db-488b-4079-a241-f59287790bd2" />
-  <Project Path="MSFS2024AddonManager/MSFS2024AddonManager.csproj" />
-</Solution>

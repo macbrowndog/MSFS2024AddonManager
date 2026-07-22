@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="../MSFS2024AddonManger.core/MSFS2024AddonManager.Core.csproj" />
+  <Project Path="../MSFS2024AddonManger.Services/MSFS2024AddonManager.Services.csproj" />
+  <Project Path="MSFS2024AddonManager.csproj" />
+</Solution>

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MSFS2024AddonManager.Controls
 {
-    internal class SearchControl
+    internal class ApplicationStatusBar
     {
     }
 }

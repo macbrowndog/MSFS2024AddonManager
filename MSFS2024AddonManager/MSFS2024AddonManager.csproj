@@ -15,15 +15,15 @@
 
   <ItemGroup>
     <Folder Include="Assets\" />
-    <Folder Include="Forms\" />
     <Folder Include="Helpers\" />
     <Folder Include="Themes\" />
     <Folder Include="Resources\" />
+    <Folder Include="UI\Icons\" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MAFS2024AddonManger.core\MSFSS2024AddonManger.core.csproj" />
-    <ProjectReference Include="..\MSFAAddonManger.Services\MSFS2024AddonManger.Services.csproj" />
+    <ProjectReference Include="..\MSFS2024AddonManger.core\MSFS2024AddonManager.Core.csproj" />
+    <ProjectReference Include="..\MSFS2024AddonManger.Services\MSFS2024AddonManager.Services.csproj" />
   </ItemGroup>
 
 </Project> 

@@ -1,4 +1,4 @@
-﻿namespace MSFS2024AddonManager.Services;
+﻿namespace MSFS2024AddonManager.UI.Themes;
 
 public static class ThemeService
 {

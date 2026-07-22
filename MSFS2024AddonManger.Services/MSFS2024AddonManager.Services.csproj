@@ -7,11 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MAFS2024AddonManger.core\MSFSS2024AddonManger.core.csproj" />
+       <ProjectReference Include="..\MSFS2024AddonManger.core\MSFS2024AddonManager.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Dependencies\" />
     <Folder Include="Linking\" />
     <Folder Include="Settings\" />
     <Folder Include="Scanning\" />

@@ -29,11 +29,17 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
+            SuspendLayout();
+            // 
+            // MainForm
+            // 
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
             Name = "MainForm";
             Text = "MSFS 2024 Addons Manager";
+            Load += MainForm_Load;
+            ResumeLayout(false);
         }
 
         #endregion
