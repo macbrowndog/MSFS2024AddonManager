@@ -10,6 +10,8 @@ public static class Colors
 
     public static readonly Color SurfaceLight = Color.FromArgb(46, 50, 56);
 
+    public static readonly Color Navigation = Color.FromArgb(22, 25, 30);
+
     public static readonly Color Accent = Color.FromArgb(0, 120, 215);
 
     public static readonly Color Success = Color.FromArgb(52, 199, 89);
