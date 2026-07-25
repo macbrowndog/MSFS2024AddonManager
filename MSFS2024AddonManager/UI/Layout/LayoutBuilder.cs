@@ -74,11 +74,50 @@ public static class LayoutBuilder
             Padding = new Padding(12, 22, 12, 12)
         };
 
-        AddNavigationButton(navigation, "Dashboard", () => ShowView(contentHost, new DashboardView()));
-        AddNavigationButton(navigation, "Addons", () => ShowView(contentHost, new AddonsView()));
-        AddNavigationButton(navigation, "Profiles", () => ShowView(contentHost, new ProfilesView()));
-        AddNavigationButton(navigation, "Scan", () => ShowView(contentHost, new ScanView()));
-        AddNavigationButton(navigation, "Settings", () => ShowView(contentHost, new SettingsView()));
+        var buttons = new List<Button>();
+        Button dashboardButton = AddNavigationButton(
+            navigation,
+            "Dashboard",
+            button =>
+            {
+                SelectNavigationButton(buttons, button);
+                ShowView(contentHost, new DashboardView());
+            });
+        buttons.Add(dashboardButton);
+        buttons.Add(AddNavigationButton(
+            navigation,
+            "Addons",
+            button =>
+            {
+                SelectNavigationButton(buttons, button);
+                ShowView(contentHost, new AddonsView());
+            }));
+        buttons.Add(AddNavigationButton(
+            navigation,
+            "Profiles",
+            button =>
+            {
+                SelectNavigationButton(buttons, button);
+                ShowView(contentHost, new ProfilesView());
+            }));
+        buttons.Add(AddNavigationButton(
+            navigation,
+            "Scan",
+            button =>
+            {
+                SelectNavigationButton(buttons, button);
+                ShowView(contentHost, new ScanView());
+            }));
+        buttons.Add(AddNavigationButton(
+            navigation,
+            "Settings",
+            button =>
+            {
+                SelectNavigationButton(buttons, button);
+                ShowView(contentHost, new SettingsView());
+            }));
+
+        SelectNavigationButton(buttons, dashboardButton);
 
         return navigation;
     }
@@ -117,28 +156,45 @@ public static class LayoutBuilder
         return status;
     }
 
-    private static void AddNavigationButton(
+    private static Button AddNavigationButton(
         FlowLayoutPanel navigation,
         string text,
-        Action onClick)
+        Action<Button> onClick)
     {
-        var button = new KryptonButton
+        var button = new Button
         {
             Text = text,
             Size = new Size(UIConstants.NavigationWidth - 24, 46),
-            Margin = new Padding(0, 0, 0, 8)
+            Margin = new Padding(0, 0, 0, 8),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = AppColors.Navigation,
+            ForeColor = AppColors.Text,
+            Font = AppFonts.Button,
+            Cursor = Cursors.Hand,
+            TabStop = false,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(18, 0, 0, 0),
+            UseVisualStyleBackColor = false
         };
 
-        button.StateCommon.Back.Color1 = AppColors.Navigation;
-        button.StateCommon.Back.Color2 = AppColors.Navigation;
-        button.StateCommon.Content.ShortText.Color1 = AppColors.Text;
-        button.StateCommon.Content.ShortText.Font = AppFonts.Button;
-        button.StateTracking.Back.Color1 = AppColors.SurfaceLight;
-        button.StateTracking.Back.Color2 = AppColors.SurfaceLight;
-        button.StatePressed.Back.Color1 = AppColors.Accent;
-        button.StatePressed.Back.Color2 = AppColors.Accent;
-        button.Click += (_, _) => onClick();
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.MouseOverBackColor = AppColors.SurfaceLight;
+        button.FlatAppearance.MouseDownBackColor = AppColors.Accent;
+        button.Click += (_, _) => onClick(button);
         navigation.Controls.Add(button);
+        return button;
+    }
+
+    private static void SelectNavigationButton(
+        IEnumerable<Button> buttons,
+        Button selectedButton)
+    {
+        foreach (Button button in buttons)
+        {
+            bool isSelected = ReferenceEquals(button, selectedButton);
+            button.BackColor = isSelected ? AppColors.Accent : AppColors.Navigation;
+            button.ForeColor = Color.White;
+        }
     }
 
     private static void ShowView(Panel contentHost, Control view)

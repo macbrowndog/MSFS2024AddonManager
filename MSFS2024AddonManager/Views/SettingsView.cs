@@ -217,10 +217,10 @@ public sealed class SettingsView : KryptonPanel
 
     private void BrowseCommunityFolder(object? sender, EventArgs e)
     {
-        using var dialog = new FolderBrowserDialog
+        using var dialog = new KryptonFolderBrowserDialog
         {
-            Description = "Select the MSFS 2024 Community folder",
-            UseDescriptionForTitle = true,
+            Title = "Select the MSFS 2024 Community folder",
+            InitialDirectory = communityFolderTextBox.Text,
             SelectedPath = communityFolderTextBox.Text
         };
 
@@ -235,10 +235,9 @@ public sealed class SettingsView : KryptonPanel
 
     private void AddLibrary(object? sender, EventArgs e)
     {
-        using var dialog = new FolderBrowserDialog
+        using var dialog = new KryptonFolderBrowserDialog
         {
-            Description = "Select an addon library folder",
-            UseDescriptionForTitle = true
+            Title = "Select an addon library folder"
         };
 
         if (dialog.ShowDialog(this) != DialogResult.OK ||
