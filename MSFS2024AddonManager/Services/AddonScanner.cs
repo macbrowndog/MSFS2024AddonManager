@@ -25,12 +25,26 @@ public sealed class AddonScanner
         AppSettings settings,
         CancellationToken cancellationToken)
     {
-        var communityNames = new HashSet<string>(
-            EnumerateDirectoriesSafely(settings.CommunityFolder)
-                .Select(Path.GetFileName)
-                .Where(folderName => !string.IsNullOrWhiteSpace(folderName))
-                .Select(folderName => folderName!),
-            StringComparer.OrdinalIgnoreCase);
+        var enabledPathsByFolderName =
+            new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (string communityPath in GetCommunityFolders(
+                     settings.CommunityFolder,
+                     settings.Community2024Folder))
+        {
+            foreach (string enabledPath in EnumerateDirectoriesSafely(communityPath))
+            {
+                string folderName = Path.GetFileName(enabledPath);
+                if (!enabledPathsByFolderName.TryGetValue(
+                        folderName,
+                        out List<string>? enabledPaths))
+                {
+                    enabledPaths = [];
+                    enabledPathsByFolderName.Add(folderName, enabledPaths);
+                }
+
+                enabledPaths.Add(communityPath);
+            }
+        }
 
         var addons = new Dictionary<string, Addon>(StringComparer.OrdinalIgnoreCase);
         foreach (string libraryPath in settings.AddonLibraries)
@@ -45,9 +59,41 @@ public sealed class AddonScanner
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string folderName = Path.GetFileName(addonPath);
-                Addon addon = ReadAddon(addonPath, libraryPath, communityNames.Contains(folderName));
+                enabledPathsByFolderName.TryGetValue(
+                    folderName,
+                    out List<string>? enabledCommunityPaths);
+                Addon addon = ReadAddon(
+                    addonPath,
+                    libraryPath,
+                    enabledCommunityPaths ?? [],
+                    true);
                 addons.TryAdd(folderName, addon);
             }
+        }
+
+        foreach ((string folderName, List<string> enabledCommunityPaths) in
+                 enabledPathsByFolderName)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (addons.ContainsKey(folderName))
+            {
+                continue;
+            }
+
+            string communityRoot = enabledCommunityPaths[0];
+            string installedPath = Path.Combine(communityRoot, folderName);
+            if (!Directory.Exists(installedPath))
+            {
+                continue;
+            }
+
+            addons.Add(
+                folderName,
+                ReadAddon(
+                    installedPath,
+                    communityRoot,
+                    enabledCommunityPaths,
+                    false));
         }
 
         return addons.Values
@@ -61,10 +107,16 @@ public sealed class AddonScanner
     {
         IReadOnlyList<Addon> addons = FindAddons(settings, cancellationToken);
         int availableLibraries = settings.AddonLibraries.Count(Directory.Exists);
-        bool communityAvailable = Directory.Exists(settings.CommunityFolder);
-        int communityItems = communityAvailable
-            ? EnumerateDirectoriesSafely(settings.CommunityFolder).Count()
-            : 0;
+        CommunityFolderSummary[] communityFolders = GetCommunityFolders(
+                settings.CommunityFolder,
+                settings.Community2024Folder)
+            .Select(path => new CommunityFolderSummary(
+                path,
+                Path.GetFileName(path),
+                EnumerateDirectoriesSafely(path).Count()))
+            .ToArray();
+        bool communityAvailable = communityFolders.Length > 0;
+        int communityItems = communityFolders.Sum(folder => folder.ItemCount);
 
         return new ScanSummary
         {
@@ -75,11 +127,16 @@ public sealed class AddonScanner
             EnabledAddons = addons.Count(addon => addon.IsEnabled),
             DisabledAddons = addons.Count(addon => !addon.IsEnabled),
             CommunityItems = communityItems,
+            CommunityFolders = communityFolders,
             CompletedAt = DateTimeOffset.Now
         };
     }
 
-    private static Addon ReadAddon(string addonPath, string libraryPath, bool isEnabled)
+    private static Addon ReadAddon(
+        string addonPath,
+        string libraryPath,
+        IReadOnlyList<string> enabledCommunityPaths,
+        bool isManagedLibraryAddon)
     {
         string folderName = Path.GetFileName(addonPath);
         string name = folderName;
@@ -125,8 +182,50 @@ public sealed class AddonScanner
             Category = InferCategory(contentType, folderName),
             Version = version,
             Author = author,
-            IsEnabled = isEnabled
+            ThumbnailPath = FindThumbnailPath(addonPath),
+            EnabledCommunityPaths = enabledCommunityPaths.ToArray(),
+            IsManagedLibraryAddon = isManagedLibraryAddon
         };
+    }
+
+    private static string? FindThumbnailPath(string addonPath)
+    {
+        string[] supportedExtensions = [".jpg", ".jpeg", ".png", ".bmp", ".gif"];
+        var searchRoots = new List<(string Path, SearchOption SearchOption)>
+        {
+            (addonPath, SearchOption.TopDirectoryOnly)
+        };
+        string contentInfoPath = Path.Combine(addonPath, "ContentInfo");
+        if (Directory.Exists(contentInfoPath))
+        {
+            searchRoots.Insert(0, (contentInfoPath, SearchOption.AllDirectories));
+        }
+
+        foreach ((string searchRoot, SearchOption searchOption) in searchRoots)
+        {
+            try
+            {
+                string? thumbnail = Directory
+                    .EnumerateFiles(searchRoot, "Thumbnail*", searchOption)
+                    .FirstOrDefault(path =>
+                        supportedExtensions.Contains(
+                            Path.GetExtension(path),
+                            StringComparer.OrdinalIgnoreCase) ||
+                        string.IsNullOrEmpty(Path.GetExtension(path)));
+
+                if (thumbnail is not null)
+                {
+                    return thumbnail;
+                }
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException)
+            {
+                // A thumbnail is optional; package discovery should continue.
+            }
+        }
+
+        return null;
     }
 
     private static string? GetString(JsonElement root, string propertyName)
@@ -189,6 +288,81 @@ public sealed class AddonScanner
             return [];
         }
     }
+
+    public static IEnumerable<string> GetCommunityFolders(
+        string configuredPath,
+        string? community2024Path = null)
+    {
+        var emittedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(configuredPath))
+        {
+            if (!string.IsNullOrWhiteSpace(community2024Path) &&
+                Directory.Exists(community2024Path))
+            {
+                yield return Path.GetFullPath(community2024Path);
+            }
+
+            yield break;
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(configuredPath);
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or NotSupportedException)
+        {
+            yield break;
+        }
+
+        if (Directory.Exists(fullPath))
+        {
+            emittedPaths.Add(fullPath);
+            yield return fullPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(community2024Path))
+        {
+            string explicit2024Path = Path.GetFullPath(community2024Path);
+            if (Directory.Exists(explicit2024Path) &&
+                emittedPaths.Add(explicit2024Path))
+            {
+                yield return explicit2024Path;
+            }
+
+            yield break;
+        }
+
+        string? parent = Path.GetDirectoryName(fullPath);
+        string folderName = Path.GetFileName(fullPath);
+        if (parent is null)
+        {
+            yield break;
+        }
+
+        string? siblingName = folderName.Equals(
+            "Community",
+            StringComparison.OrdinalIgnoreCase)
+            ? "Community2024"
+            : folderName.Equals(
+                "Community2024",
+                StringComparison.OrdinalIgnoreCase)
+                ? "Community"
+                : null;
+
+        if (siblingName is null)
+        {
+            yield break;
+        }
+
+        string siblingPath = Path.Combine(parent, siblingName);
+        if (Directory.Exists(siblingPath))
+        {
+            yield return siblingPath;
+        }
+    }
 }
 
 public sealed class ScanSummary
@@ -207,5 +381,12 @@ public sealed class ScanSummary
 
     public int CommunityItems { get; init; }
 
+    public IReadOnlyList<CommunityFolderSummary> CommunityFolders { get; init; } = [];
+
     public DateTimeOffset CompletedAt { get; init; }
 }
+
+public sealed record CommunityFolderSummary(
+    string Path,
+    string Name,
+    int ItemCount);

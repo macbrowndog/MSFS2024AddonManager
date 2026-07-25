@@ -16,7 +16,8 @@ public sealed class DashboardView : KryptonPanel
     private readonly Label disabledValue = CreateValueLabel();
     private readonly Label pathLabel = new();
     private readonly Label scanStatusLabel = new();
-    private readonly KryptonButton scanButton = new();
+    private readonly Button scanButton = new();
+    private bool hasAutoScanned;
 
     public DashboardView()
     {
@@ -24,6 +25,22 @@ public sealed class DashboardView : KryptonPanel
         StateCommon.Color1 = AppColors.Background;
         BuildInterface();
         Shown();
+    }
+
+    protected override async void OnCreateControl()
+    {
+        base.OnCreateControl();
+
+        if (hasAutoScanned || DesignMode)
+        {
+            return;
+        }
+
+        hasAutoScanned = true;
+        if (settingsService.Load().ScanOnStartup)
+        {
+            await RunQuickScanAsync();
+        }
     }
 
     private void BuildInterface()
@@ -138,20 +155,28 @@ public sealed class DashboardView : KryptonPanel
         pathLabel.ForeColor = AppColors.SecondaryText;
         pathLabel.AutoEllipsis = true;
         pathLabel.Location = new Point(20, 57);
+        pathLabel.Size = new Size(650, 58);
         pathLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
         scanStatusLabel.Font = AppFonts.Small;
         scanStatusLabel.ForeColor = AppColors.SecondaryText;
         scanStatusLabel.AutoSize = true;
-        scanStatusLabel.Location = new Point(20, 96);
+        scanStatusLabel.Location = new Point(20, 126);
 
         scanButton.Text = "Quick Scan";
         scanButton.Size = new Size(126, 40);
         scanButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        scanButton.StateCommon.Back.Color1 = AppColors.Accent;
-        scanButton.StateCommon.Back.Color2 = AppColors.Accent;
-        scanButton.StateCommon.Content.ShortText.Color1 = Color.White;
-        scanButton.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        scanButton.FlatStyle = FlatStyle.Flat;
+        scanButton.BackColor = AppColors.AccentDark;
+        scanButton.ForeColor = Color.White;
+        scanButton.Font = AppFonts.Button;
+        scanButton.Cursor = Cursors.Hand;
+        scanButton.TabStop = false;
+        scanButton.UseVisualStyleBackColor = false;
+        scanButton.FlatAppearance.BorderColor = AppColors.Accent;
+        scanButton.FlatAppearance.BorderSize = 1;
+        scanButton.FlatAppearance.MouseOverBackColor = AppColors.Accent;
+        scanButton.FlatAppearance.MouseDownBackColor = AppColors.AccentDark;
         scanButton.Click += ScanButton_Click;
 
         panel.Controls.AddRange([pathLabel, scanStatusLabel, scanButton]);
@@ -166,9 +191,18 @@ public sealed class DashboardView : KryptonPanel
     private void Shown()
     {
         AppSettings settings = settingsService.Load();
-        pathLabel.Text = string.IsNullOrWhiteSpace(settings.CommunityFolder)
-            ? "Not configured — open Settings to choose a folder."
-            : settings.CommunityFolder;
+        string[] communityFolders = AddonScanner
+            .GetCommunityFolders(
+                settings.CommunityFolder,
+                settings.Community2024Folder)
+            .ToArray();
+        pathLabel.Text = communityFolders.Length == 0
+            ? string.IsNullOrWhiteSpace(settings.CommunityFolder)
+                ? "Not configured — open Settings to choose a folder."
+                : settings.CommunityFolder
+            : string.Join(
+                Environment.NewLine,
+                communityFolders.Select(path => $"{Path.GetFileName(path)}: {path}"));
         communityValue.Text = Directory.Exists(settings.CommunityFolder) ? "CONNECTED" : "NOT SET";
         communityValue.ForeColor = Directory.Exists(settings.CommunityFolder)
             ? AppColors.Success
@@ -180,6 +214,11 @@ public sealed class DashboardView : KryptonPanel
     }
 
     private async void ScanButton_Click(object? sender, EventArgs e)
+    {
+        await RunQuickScanAsync();
+    }
+
+    private async Task RunQuickScanAsync()
     {
         scanButton.Enabled = false;
         scanButton.Text = "Scanning...";
@@ -198,9 +237,15 @@ public sealed class DashboardView : KryptonPanel
             librariesValue.Text = $"{summary.AvailableLibraries}/{summary.ConfiguredLibraries}";
             enabledValue.Text = summary.EnabledAddons.ToString();
             disabledValue.Text = summary.DisabledAddons.ToString();
+            pathLabel.Text = summary.CommunityFolders.Count == 0
+                ? "No Community folders were available."
+                : string.Join(
+                    Environment.NewLine,
+                    summary.CommunityFolders.Select(folder =>
+                        $"{folder.Name}: {folder.ItemCount} items — {folder.Path}"));
             scanStatusLabel.ForeColor = AppColors.Success;
             scanStatusLabel.Text =
-                $"Scan complete: {summary.TotalAddons} addons found at {summary.CompletedAt:HH:mm}.";
+                $"Scan complete: {summary.TotalAddons} addons found; {summary.CommunityFolders.Count} Community folder(s) scanned at {summary.CompletedAt:HH:mm}.";
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException)

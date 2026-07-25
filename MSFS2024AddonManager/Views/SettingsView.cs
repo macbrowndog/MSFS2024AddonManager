@@ -11,10 +11,12 @@ public sealed class SettingsView : KryptonPanel
     private readonly SettingsService settingsService;
     private readonly AppSettings settings;
     private readonly KryptonTextBox communityFolderTextBox = new();
+    private readonly KryptonTextBox community2024FolderTextBox = new();
     private readonly ListBox addonLibrariesList = new();
     private readonly CheckBox autoDetectCheckBox = new();
     private readonly CheckBox scanOnStartupCheckBox = new();
     private readonly Label feedbackLabel = new();
+    private bool isLoadingSettings;
 
     public SettingsView()
     {
@@ -40,7 +42,7 @@ public sealed class SettingsView : KryptonPanel
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 70));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 208));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 290));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
 
@@ -79,7 +81,7 @@ public sealed class SettingsView : KryptonPanel
     private Control CreateCommunitySection()
     {
         var panel = CreateSurfacePanel();
-        var title = CreateSectionTitle("Community folder");
+        var title = CreateSectionTitle("Community folder (default)");
         title.Location = new Point(18, 14);
 
         communityFolderTextBox.Location = new Point(18, 52);
@@ -94,12 +96,42 @@ public sealed class SettingsView : KryptonPanel
         detectButton.Location = new Point(794, 50);
         detectButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
 
-        panel.Controls.AddRange([title, communityFolderTextBox, browseButton, detectButton]);
+        var community2024Title = CreateSectionTitle("Community2024 folder (optional)");
+        community2024Title.Location = new Point(18, 94);
+
+        community2024FolderTextBox.Location = new Point(18, 132);
+        community2024FolderTextBox.Anchor =
+            AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        community2024FolderTextBox.Width = 650;
+
+        var browse2024Button = CreateButton("Browse...", BrowseCommunity2024Folder);
+        browse2024Button.Location = new Point(684, 130);
+        browse2024Button.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+        var detect2024Button = CreateButton("Auto-detect", DetectCommunity2024Folder);
+        detect2024Button.Location = new Point(794, 130);
+        detect2024Button.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+        panel.Controls.AddRange(
+        [
+            title,
+            communityFolderTextBox,
+            browseButton,
+            detectButton,
+            community2024Title,
+            community2024FolderTextBox,
+            browse2024Button,
+            detect2024Button
+        ]);
         panel.Resize += (_, _) =>
         {
             communityFolderTextBox.Width = Math.Max(240, panel.ClientSize.Width - 278);
+            community2024FolderTextBox.Width =
+                Math.Max(240, panel.ClientSize.Width - 278);
             browseButton.Left = panel.ClientSize.Width - 242;
             detectButton.Left = panel.ClientSize.Width - 132;
+            browse2024Button.Left = panel.ClientSize.Width - 242;
+            detect2024Button.Left = panel.ClientSize.Width - 132;
         };
         return panel;
     }
@@ -154,14 +186,26 @@ public sealed class SettingsView : KryptonPanel
         autoDetectCheckBox.ForeColor = AppColors.Text;
         autoDetectCheckBox.AutoSize = true;
         autoDetectCheckBox.Location = new Point(18, 18);
-        autoDetectCheckBox.CheckedChanged += (_, _) => SaveSettings();
+        autoDetectCheckBox.CheckedChanged += (_, _) =>
+        {
+            if (!isLoadingSettings)
+            {
+                SaveSettings();
+            }
+        };
 
         scanOnStartupCheckBox.Text = "Scan addon libraries when the application starts";
         scanOnStartupCheckBox.Font = AppFonts.Normal;
         scanOnStartupCheckBox.ForeColor = AppColors.Text;
         scanOnStartupCheckBox.AutoSize = true;
         scanOnStartupCheckBox.Location = new Point(18, 50);
-        scanOnStartupCheckBox.CheckedChanged += (_, _) => SaveSettings();
+        scanOnStartupCheckBox.CheckedChanged += (_, _) =>
+        {
+            if (!isLoadingSettings)
+            {
+                SaveSettings();
+            }
+        };
 
         feedbackLabel.Font = AppFonts.Small;
         feedbackLabel.ForeColor = AppColors.Success;
@@ -187,31 +231,66 @@ public sealed class SettingsView : KryptonPanel
         AutoSize = true
     };
 
-    private static KryptonButton CreateButton(string text, EventHandler clickHandler)
+    private static Button CreateButton(string text, EventHandler clickHandler)
     {
-        var button = new KryptonButton
+        var button = new Button
         {
             Text = text,
-            Size = new Size(100, 34)
+            Size = new Size(100, 34),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = AppColors.SurfaceLight,
+            ForeColor = AppColors.Text,
+            Font = AppFonts.Button,
+            Cursor = Cursors.Hand,
+            TabStop = false,
+            UseVisualStyleBackColor = false
         };
-        button.StateCommon.Back.Color1 = AppColors.SurfaceLight;
-        button.StateCommon.Back.Color2 = AppColors.SurfaceLight;
-        button.StateCommon.Content.ShortText.Color1 = AppColors.Text;
-        button.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        button.FlatAppearance.BorderColor = AppColors.Accent;
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.MouseOverBackColor = AppColors.AccentDark;
+        button.FlatAppearance.MouseDownBackColor = AppColors.Accent;
         button.Click += clickHandler;
         return button;
     }
 
     private void LoadSettingsIntoControls()
     {
+        isLoadingSettings = true;
         communityFolderTextBox.Text = settings.CommunityFolder;
+        community2024FolderTextBox.Text = settings.Community2024Folder;
         addonLibrariesList.Items.AddRange(settings.AddonLibraries.Cast<object>().ToArray());
         autoDetectCheckBox.Checked = settings.AutoDetectMsfs;
         scanOnStartupCheckBox.Checked = settings.ScanOnStartup;
+        isLoadingSettings = false;
 
-        if (settings.AutoDetectMsfs && string.IsNullOrWhiteSpace(settings.CommunityFolder))
+        if (settings.AutoDetectMsfs)
         {
-            DetectCommunityFolder(this, EventArgs.Empty);
+            bool detected = false;
+            if (string.IsNullOrWhiteSpace(settings.CommunityFolder))
+            {
+                string? communityPath = settingsService.DetectCommunityFolder();
+                if (communityPath is not null)
+                {
+                    communityFolderTextBox.Text = communityPath;
+                    detected = true;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(settings.Community2024Folder))
+            {
+                string? community2024Path =
+                    settingsService.DetectCommunity2024Folder();
+                if (community2024Path is not null)
+                {
+                    community2024FolderTextBox.Text = community2024Path;
+                    detected = true;
+                }
+            }
+
+            if (detected)
+            {
+                SaveSettings("Community folders detected and saved.");
+            }
         }
     }
 
@@ -252,6 +331,24 @@ public sealed class SettingsView : KryptonPanel
         SaveSettings("Addon library added.");
     }
 
+    private void BrowseCommunity2024Folder(object? sender, EventArgs e)
+    {
+        using var dialog = new KryptonFolderBrowserDialog
+        {
+            Title = "Select the optional Community2024 folder",
+            InitialDirectory = community2024FolderTextBox.Text,
+            SelectedPath = community2024FolderTextBox.Text
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        community2024FolderTextBox.Text = dialog.SelectedPath;
+        SaveSettings("Community2024 folder saved.");
+    }
+
     private void RemoveLibrary(object? sender, EventArgs e)
     {
         if (addonLibrariesList.SelectedItem is null)
@@ -277,9 +374,25 @@ public sealed class SettingsView : KryptonPanel
         SaveSettings("Community folder detected and saved.");
     }
 
+    private void DetectCommunity2024Folder(object? sender, EventArgs e)
+    {
+        string? detectedPath = settingsService.DetectCommunity2024Folder();
+        if (detectedPath is null)
+        {
+            feedbackLabel.ForeColor = AppColors.Warning;
+            feedbackLabel.Text =
+                "No Community2024 folder was detected. This optional folder can be left blank.";
+            return;
+        }
+
+        community2024FolderTextBox.Text = detectedPath;
+        SaveSettings("Community2024 folder detected and saved.");
+    }
+
     private void SaveSettings(string? message = null)
     {
         settings.CommunityFolder = communityFolderTextBox.Text.Trim();
+        settings.Community2024Folder = community2024FolderTextBox.Text.Trim();
         settings.AddonLibraries = addonLibrariesList.Items.Cast<string>().ToList();
         settings.AutoDetectMsfs = autoDetectCheckBox.Checked;
         settings.ScanOnStartup = scanOnStartupCheckBox.Checked;

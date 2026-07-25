@@ -6,6 +6,17 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Authors>Andrew Brown</Authors>
+    <Company>Andrew Brown</Company>
+    <Product>MSFS 2024 Addons Manager</Product>
+    <Description>Manage MSFS 2024 addon libraries, profiles, and Community folders.</Description>
+    <Copyright>Andrew Brown © 2026</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,4 +37,4 @@
     <ProjectReference Include="..\MSFS2024AddonManger.Services\MSFS2024AddonManager.Services.csproj" />
   </ItemGroup>
 
-</Project> 
+</Project>

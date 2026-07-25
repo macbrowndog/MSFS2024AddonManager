@@ -20,9 +20,7 @@ public partial class MainForm : KryptonForm
 
     private void ConfigureWindow()
     {
-        string version = Application.ProductVersion;
-
-        Text = $"{ApplicationName} • Version {version}";
+        Text = $"{ApplicationName} • Version {UI.UIConstants.ApplicationVersion} • {UI.UIConstants.Copyright}";
 
         StartPosition = FormStartPosition.CenterScreen;
 
@@ -30,6 +28,12 @@ public partial class MainForm : KryptonForm
         Size = new Size(1500, 900);
 
         BackColor = AppColors.Background;
+
+        Icon? applicationIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        if (applicationIcon is not null)
+        {
+            Icon = applicationIcon;
+        }
     }
 
     private void MainForm_Load(object sender, EventArgs e)

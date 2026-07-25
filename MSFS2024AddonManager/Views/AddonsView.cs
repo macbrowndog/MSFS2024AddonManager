@@ -12,6 +12,7 @@ public sealed class AddonsView : KryptonPanel
     private readonly AddonScanner addonScanner = new();
     private readonly KryptonTextBox searchBox = new();
     private readonly ComboBox categoryBox = new();
+    private readonly ComboBox locationBox = new();
     private readonly FlowLayoutPanel cardsPanel = new();
     private readonly Label resultLabel = new();
     private readonly Label emptyLabel = new();
@@ -24,7 +25,14 @@ public sealed class AddonsView : KryptonPanel
     private readonly Label detailVersion = new();
     private readonly Label detailFolder = new();
     private readonly Label detailLibrary = new();
+    private readonly PictureBox detailThumbnail = new();
+    private readonly Label activeProfileLabel = new();
+    private readonly Button profileAssignmentButton = new();
+    private readonly ComboBox linkTargetBox = new();
+    private readonly Button linkActionButton = new();
+    private readonly Label linkFeedbackLabel = new();
     private IReadOnlyList<Addon> addons = [];
+    private Addon? selectedAddon;
     private bool hasLoaded;
 
     public AddonsView()
@@ -120,6 +128,22 @@ public sealed class AddonsView : KryptonPanel
         categoryBox.Size = new Size(160, 32);
         categoryBox.SelectedIndexChanged += (_, _) => ApplyFilters();
 
+        locationBox.Items.AddRange(
+        [
+            "All locations",
+            "Addon libraries",
+            "Community",
+            "Community2024"
+        ]);
+        locationBox.SelectedIndex = 0;
+        locationBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        locationBox.Font = AppFonts.Normal;
+        locationBox.BackColor = AppColors.SurfaceLight;
+        locationBox.ForeColor = AppColors.Text;
+        locationBox.Location = new Point(532, 14);
+        locationBox.Size = new Size(170, 32);
+        locationBox.SelectedIndexChanged += (_, _) => ApplyFilters();
+
         refreshButton.Text = "Refresh";
         refreshButton.Size = new Size(100, 34);
         refreshButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -134,7 +158,8 @@ public sealed class AddonsView : KryptonPanel
         resultLabel.AutoSize = true;
         resultLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
 
-        panel.Controls.AddRange([searchBox, categoryBox, resultLabel, refreshButton]);
+        panel.Controls.AddRange(
+            [searchBox, categoryBox, locationBox, resultLabel, refreshButton]);
         panel.Resize += (_, _) =>
         {
             refreshButton.Location = new Point(panel.ClientSize.Width - 114, 13);
@@ -159,6 +184,7 @@ public sealed class AddonsView : KryptonPanel
         cardsPanel.FlowDirection = FlowDirection.LeftToRight;
         cardsPanel.BackColor = AppColors.Background;
         cardsPanel.Padding = new Padding(0, 16, 0, 0);
+        cardsPanel.Resize += (_, _) => ResizeSectionHeaders();
 
         emptyLabel.Text = "No addons found.\n\nOpen Settings and add an addon library, then select Refresh.";
         emptyLabel.Font = AppFonts.Title;
@@ -179,6 +205,7 @@ public sealed class AddonsView : KryptonPanel
         detailsPanel.Width = 350;
         detailsPanel.BackColor = AppColors.Surface;
         detailsPanel.Padding = new Padding(24);
+        detailsPanel.AutoScroll = true;
         detailsPanel.Visible = false;
 
         var closeButton = new Button
@@ -198,35 +225,87 @@ public sealed class AddonsView : KryptonPanel
         closeButton.FlatAppearance.MouseOverBackColor = AppColors.SurfaceLight;
         closeButton.Click += (_, _) => detailsPanel.Visible = false;
 
-        ConfigureDetailLabel(detailName, AppFonts.Header, AppColors.Text, 24, 56, 302, 72);
-        ConfigureDetailLabel(detailCategory, AppFonts.Small, AppColors.Accent, 24, 132, 302, 24);
-        ConfigureDetailLabel(detailStatus, AppFonts.Button, AppColors.Success, 24, 164, 302, 28);
+        detailThumbnail.Location = new Point(24, 56);
+        detailThumbnail.Size = new Size(302, 120);
+        detailThumbnail.SizeMode = PictureBoxSizeMode.Zoom;
+        detailThumbnail.BackColor = AppColors.Navigation;
+        detailThumbnail.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+        ConfigureDetailLabel(detailName, AppFonts.Header, AppColors.Text, 24, 190, 302, 72);
+        ConfigureDetailLabel(detailCategory, AppFonts.Small, AppColors.Accent, 24, 266, 302, 24);
+        ConfigureDetailLabel(detailStatus, AppFonts.Button, AppColors.Success, 24, 298, 302, 28);
 
         var separator = new Panel
         {
             BackColor = AppColors.SurfaceLight,
-            Location = new Point(24, 205),
+            Location = new Point(24, 339),
             Size = new Size(302, 1),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
 
-        AddDetailRow("AUTHOR", detailAuthor, 228);
-        AddDetailRow("VERSION", detailVersion, 294);
-        AddDetailRow("PACKAGE FOLDER", detailFolder, 360, 58);
-        AddDetailRow("ADDON LIBRARY", detailLibrary, 444, 72);
+        AddDetailRow("AUTHOR", detailAuthor, 362);
+        AddDetailRow("VERSION", detailVersion, 428);
+        AddDetailRow("PACKAGE FOLDER", detailFolder, 494, 58);
+        AddDetailRow("ADDON LIBRARY", detailLibrary, 578, 72);
 
-        var notice = new Label
+        detailsPanel.Controls.Add(new Label
         {
-            Text = "Enable and disable controls will be added after symbolic-link testing on the MSFS machine.",
+            Text = "LINK DESTINATION",
             Font = AppFonts.Small,
             ForeColor = AppColors.SecondaryText,
-            Location = new Point(24, 550),
-            Size = new Size(302, 60),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-        };
+            AutoSize = true,
+            Location = new Point(24, 660)
+        });
+
+        linkTargetBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        linkTargetBox.Font = AppFonts.Normal;
+        linkTargetBox.BackColor = AppColors.SurfaceLight;
+        linkTargetBox.ForeColor = AppColors.Text;
+        linkTargetBox.Location = new Point(24, 682);
+        linkTargetBox.Size = new Size(240, 32);
+        linkTargetBox.SelectedIndexChanged += (_, _) =>
+            UpdateLinkActionForSelectedTarget();
+
+        activeProfileLabel.Font = AppFonts.Small;
+        activeProfileLabel.ForeColor = AppColors.SecondaryText;
+        activeProfileLabel.Location = new Point(24, 730);
+        activeProfileLabel.Size = new Size(302, 48);
+        activeProfileLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+        profileAssignmentButton.Text = "Add to active profile";
+        profileAssignmentButton.Location = new Point(24, 784);
+        profileAssignmentButton.Size = new Size(190, 38);
+        StyleDarkButton(profileAssignmentButton);
+        profileAssignmentButton.Click += (_, _) => ToggleActiveProfileAssignment();
+
+        linkActionButton.Text = "Enable addon";
+        linkActionButton.Location = new Point(24, 834);
+        linkActionButton.Size = new Size(190, 38);
+        StyleDarkButton(linkActionButton);
+        linkActionButton.Click += ToggleAddonLink;
+
+        linkFeedbackLabel.Text =
+            "Enable creates a directory symbolic link. Your source addon folder is never moved.";
+        linkFeedbackLabel.Font = AppFonts.Small;
+        linkFeedbackLabel.ForeColor = AppColors.SecondaryText;
+        linkFeedbackLabel.Location = new Point(24, 886);
+        linkFeedbackLabel.Size = new Size(302, 90);
+        linkFeedbackLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
         detailsPanel.Controls.AddRange(
-            [closeButton, detailName, detailCategory, detailStatus, separator, notice]);
+        [
+            closeButton,
+            detailThumbnail,
+            detailName,
+            detailCategory,
+            detailStatus,
+            separator,
+            linkTargetBox,
+            activeProfileLabel,
+            profileAssignmentButton,
+            linkActionButton,
+            linkFeedbackLabel
+        ]);
     }
 
     private void AddDetailRow(string heading, Label valueLabel, int top, int valueHeight = 28)
@@ -290,21 +369,28 @@ public sealed class AddonsView : KryptonPanel
     {
         string searchText = searchBox.Text.Trim();
         string category = categoryBox.SelectedItem?.ToString() ?? "All categories";
+        string location = locationBox.SelectedItem?.ToString() ?? "All locations";
+        AppSettings settings = settingsService.Load();
 
         Addon[] filtered = addons
             .Where(addon =>
                 (searchText.Length == 0 ||
                  addon.Name.Contains(searchText, StringComparison.CurrentCultureIgnoreCase) ||
                  addon.Author.Contains(searchText, StringComparison.CurrentCultureIgnoreCase)) &&
-                (category == "All categories" || addon.Category == category))
+                (category == "All categories" || addon.Category == category) &&
+                MatchesLocation(addon, location, settings))
             .ToArray();
 
         cardsPanel.SuspendLayout();
-        cardsPanel.Controls.Clear();
-        foreach (Addon addon in filtered)
-        {
-            cardsPanel.Controls.Add(CreateAddonCard(addon));
-        }
+        DisposeChildControls(cardsPanel);
+        AddAddonSection(
+            "ACTIVE ADDONS",
+            filtered.Where(addon => addon.IsEnabled).ToArray(),
+            AppColors.Success);
+        AddAddonSection(
+            "INACTIVE ADDONS",
+            filtered.Where(addon => !addon.IsEnabled).ToArray(),
+            AppColors.SecondaryText);
         cardsPanel.ResumeLayout(true);
 
         emptyLabel.Visible = filtered.Length == 0;
@@ -312,11 +398,75 @@ public sealed class AddonsView : KryptonPanel
         resultLabel.Text = $"{filtered.Length} of {addons.Count} addons";
     }
 
+    private void AddAddonSection(
+        string title,
+        IReadOnlyCollection<Addon> sectionAddons,
+        Color accentColor)
+    {
+        if (sectionAddons.Count == 0)
+        {
+            return;
+        }
+
+        var header = new Panel
+        {
+            Name = "AddonSectionHeader",
+            Size = new Size(GetSectionWidth(), 44),
+            BackColor = AppColors.Background,
+            Margin = new Padding(0, 0, 0, 8)
+        };
+        header.Controls.Add(new Label
+        {
+            Text = $"{title}  ({sectionAddons.Count})",
+            Font = AppFonts.Title,
+            ForeColor = accentColor,
+            AutoSize = true,
+            Location = new Point(2, 10)
+        });
+        cardsPanel.Controls.Add(header);
+        cardsPanel.SetFlowBreak(header, true);
+
+        Control? lastCard = null;
+        foreach (Addon addon in sectionAddons)
+        {
+            lastCard = CreateAddonCard(addon);
+            cardsPanel.Controls.Add(lastCard);
+        }
+
+        if (lastCard is not null)
+        {
+            cardsPanel.SetFlowBreak(lastCard, true);
+        }
+    }
+
+    private void ResizeSectionHeaders()
+    {
+        foreach (Control control in cardsPanel.Controls)
+        {
+            if (control.Name == "AddonSectionHeader")
+            {
+                control.Width = GetSectionWidth();
+            }
+        }
+    }
+
+    private int GetSectionWidth()
+    {
+        return Math.Max(
+            310,
+            cardsPanel.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 8);
+    }
+
     private Control CreateAddonCard(Addon addon)
     {
+        Image? thumbnailImage = LoadThumbnail(addon.ThumbnailPath);
+        bool hasThumbnail = thumbnailImage is not null;
+        int textLeft = hasThumbnail ? 116 : 18;
+        int textWidth = hasThumbnail ? 176 : 274;
+
         var card = new Panel
         {
-            Size = new Size(310, 142),
+            Size = new Size(310, 158),
             BackColor = AppColors.Surface,
             Margin = new Padding(0, 0, 16, 16),
             Padding = new Padding(18)
@@ -328,8 +478,8 @@ public sealed class AddonsView : KryptonPanel
             Font = AppFonts.Title,
             ForeColor = AppColors.Text,
             AutoEllipsis = true,
-            Location = new Point(18, 16),
-            Size = new Size(274, 25)
+            Location = new Point(textLeft, 16),
+            Size = new Size(textWidth, 44)
         };
         var category = new Label
         {
@@ -337,7 +487,7 @@ public sealed class AddonsView : KryptonPanel
             Font = AppFonts.Small,
             ForeColor = AppColors.Accent,
             AutoSize = true,
-            Location = new Point(18, 49)
+            Location = new Point(textLeft, 65)
         };
         var details = new Label
         {
@@ -345,19 +495,31 @@ public sealed class AddonsView : KryptonPanel
             Font = AppFonts.Small,
             ForeColor = AppColors.SecondaryText,
             AutoEllipsis = true,
-            Location = new Point(18, 76),
-            Size = new Size(274, 22)
+            Location = new Point(textLeft, 92),
+            Size = new Size(textWidth, 22)
         };
         var status = new Label
         {
-            Text = addon.IsEnabled ? "● ENABLED" : "○ DISABLED",
+            Text = addon.IsEnabled
+                ? $"● ENABLED • {GetEnabledLocationText(addon)}"
+                : "○ DISABLED",
             Font = AppFonts.Small,
             ForeColor = addon.IsEnabled ? AppColors.Success : AppColors.SecondaryText,
             AutoSize = true,
-            Location = new Point(18, 108)
+            Location = new Point(textLeft, 126)
         };
 
-        card.Controls.AddRange([name, category, details, status]);
+        var thumbnail = new PictureBox
+        {
+            Location = new Point(16, 16),
+            Size = new Size(86, 126),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = AppColors.Navigation,
+            Image = thumbnailImage,
+            Visible = hasThumbnail
+        };
+
+        card.Controls.AddRange([thumbnail, name, category, details, status]);
         AttachSelectionHandler(card, addon);
         return card;
     }
@@ -375,17 +537,353 @@ public sealed class AddonsView : KryptonPanel
 
     private void ShowDetails(Addon addon)
     {
+        selectedAddon = addon;
         detailName.Text = addon.Name;
         detailCategory.Text = addon.Category.ToUpperInvariant();
-        detailStatus.Text = addon.IsEnabled ? "● ENABLED" : "○ DISABLED";
+        detailStatus.Text = addon.IsEnabled
+            ? $"● ENABLED • {GetEnabledLocationText(addon)}"
+            : "○ DISABLED";
         detailStatus.ForeColor = addon.IsEnabled
             ? AppColors.Success
             : AppColors.SecondaryText;
         detailAuthor.Text = addon.Author;
         detailVersion.Text = addon.Version;
         detailFolder.Text = addon.Path;
-        detailLibrary.Text = addon.LibraryPath;
+        detailLibrary.Text = addon.IsManagedLibraryAddon
+            ? addon.LibraryPath
+            : $"Installed directly in {Path.GetFileName(addon.LibraryPath)}";
+        Image? detailImage = LoadThumbnail(addon.ThumbnailPath);
+        detailThumbnail.Visible = detailImage is not null;
+        ReplaceImage(detailThumbnail, detailImage);
+        RefreshProfileAssignment(addon);
+        ConfigureLinkTargets(addon);
         detailsPanel.Visible = true;
         detailsPanel.BringToFront();
+    }
+
+    private void RefreshProfileAssignment(Addon addon)
+    {
+        ProfileCollection profiles = new ProfileService().Load();
+        AddonProfile? activeProfile = profiles.Profiles.FirstOrDefault(
+            profile => profile.Id == profiles.ActiveProfileId);
+
+        if (activeProfile is null)
+        {
+            activeProfileLabel.Text = "No active profile.\r\nCreate one on the Profiles page.";
+            profileAssignmentButton.Enabled = false;
+            profileAssignmentButton.Text = "No active profile";
+            return;
+        }
+
+        bool isAssigned = activeProfile.AddonFolderNames.Contains(
+            addon.FolderName,
+            StringComparer.OrdinalIgnoreCase);
+        activeProfileLabel.Text = $"ACTIVE PROFILE: {activeProfile.Name}";
+        profileAssignmentButton.Enabled = true;
+        profileAssignmentButton.Text = isAssigned
+            ? "Remove from profile"
+            : "Add to active profile";
+    }
+
+    private void ToggleActiveProfileAssignment()
+    {
+        if (selectedAddon is null)
+        {
+            return;
+        }
+
+        var profileService = new ProfileService();
+        ProfileCollection profiles = profileService.Load();
+        AddonProfile? activeProfile = profiles.Profiles.FirstOrDefault(
+            profile => profile.Id == profiles.ActiveProfileId);
+        if (activeProfile is null)
+        {
+            RefreshProfileAssignment(selectedAddon);
+            return;
+        }
+
+        int existingIndex = activeProfile.AddonFolderNames.FindIndex(
+            folderName => folderName.Equals(
+                selectedAddon.FolderName,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (existingIndex >= 0)
+        {
+            activeProfile.AddonFolderNames.RemoveAt(existingIndex);
+        }
+        else
+        {
+            activeProfile.AddonFolderNames.Add(selectedAddon.FolderName);
+        }
+
+        profileService.Save(profiles);
+        RefreshProfileAssignment(selectedAddon);
+    }
+
+    private async void ToggleAddonLink(object? sender, EventArgs e)
+    {
+        if (selectedAddon is null)
+        {
+            return;
+        }
+
+        var linkService = new LinkService();
+        if (linkTargetBox.SelectedItem is not CommunityTarget target)
+        {
+            linkFeedbackLabel.ForeColor = AppColors.Warning;
+            linkFeedbackLabel.Text =
+                "Configure a Community or Community2024 folder in Settings first.";
+            return;
+        }
+
+        bool isEnabledAtTarget = IsEnabledAtTarget(selectedAddon, target.Path);
+        if (isEnabledAtTarget)
+        {
+            DialogResult confirmation = KryptonMessageBox.Show(
+                this,
+                $"Disable \"{selectedAddon.Name}\"?\r\n\r\nOnly its symbolic link will be removed. The source addon folder will not be deleted.",
+                "Disable addon",
+                KryptonMessageBoxButtons.YesNo,
+                KryptonMessageBoxIcon.Warning);
+
+            if (confirmation != DialogResult.Yes)
+            {
+                return;
+            }
+        }
+
+        linkActionButton.Enabled = false;
+        LinkOperationResult result = isEnabledAtTarget
+            ? linkService.Disable(selectedAddon, target.Path)
+            : linkService.Enable(selectedAddon, target.Path);
+
+        linkFeedbackLabel.ForeColor = result.Success
+            ? AppColors.Success
+            : AppColors.Error;
+        linkFeedbackLabel.Text = result.Message;
+
+        if (result.Success)
+        {
+            string folderName = selectedAddon.FolderName;
+            await LoadAddonsAsync();
+            Addon? refreshedAddon = addons.FirstOrDefault(addon =>
+                addon.FolderName.Equals(
+                    folderName,
+                    StringComparison.OrdinalIgnoreCase));
+            if (refreshedAddon is not null)
+            {
+                ShowDetails(refreshedAddon);
+                linkFeedbackLabel.ForeColor = AppColors.Success;
+                linkFeedbackLabel.Text = result.Message;
+            }
+        }
+
+        linkActionButton.Enabled = true;
+    }
+
+    private static void StyleDarkButton(Button button)
+    {
+        button.FlatStyle = FlatStyle.Flat;
+        button.BackColor = AppColors.AccentDark;
+        button.ForeColor = Color.White;
+        button.Font = AppFonts.Button;
+        button.Cursor = Cursors.Hand;
+        button.TabStop = false;
+        button.UseVisualStyleBackColor = false;
+        button.FlatAppearance.BorderColor = AppColors.Accent;
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.MouseOverBackColor = AppColors.Accent;
+        button.FlatAppearance.MouseDownBackColor = AppColors.AccentDark;
+    }
+
+    private void ConfigureLinkTargets(Addon addon)
+    {
+        AppSettings settings = settingsService.Load();
+        linkTargetBox.Items.Clear();
+
+        if (!string.IsNullOrWhiteSpace(settings.CommunityFolder))
+        {
+            linkTargetBox.Items.Add(new CommunityTarget(
+                "Community (default)",
+                settings.CommunityFolder));
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.Community2024Folder))
+        {
+            linkTargetBox.Items.Add(new CommunityTarget(
+                "Community2024",
+                settings.Community2024Folder));
+        }
+
+        CommunityTarget? preferredTarget = GetPreferredTargetFromLocationFilter();
+        if (preferredTarget is not null)
+        {
+            preferredTarget = linkTargetBox.Items
+                .Cast<CommunityTarget>()
+                .FirstOrDefault(target => NormalizePath(target.Path).Equals(
+                    NormalizePath(preferredTarget.Path),
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        CommunityTarget? enabledTarget = linkTargetBox.Items
+            .Cast<CommunityTarget>()
+            .FirstOrDefault(target => IsEnabledAtTarget(addon, target.Path));
+
+        if (preferredTarget is not null)
+        {
+            linkTargetBox.SelectedItem = preferredTarget;
+        }
+        else if (enabledTarget is not null)
+        {
+            linkTargetBox.SelectedItem = enabledTarget;
+        }
+        else if (linkTargetBox.Items.Count > 0)
+        {
+            linkTargetBox.SelectedIndex = 0;
+        }
+        else
+        {
+            UpdateLinkActionForSelectedTarget();
+        }
+    }
+
+    private void UpdateLinkActionForSelectedTarget()
+    {
+        if (selectedAddon is null ||
+            linkTargetBox.SelectedItem is not CommunityTarget target)
+        {
+            linkActionButton.Enabled = false;
+            linkActionButton.Text = "No link destination";
+            linkFeedbackLabel.ForeColor = AppColors.Warning;
+            linkFeedbackLabel.Text =
+                "Configure a Community or Community2024 folder in Settings first.";
+            return;
+        }
+
+        if (!selectedAddon.IsManagedLibraryAddon)
+        {
+            linkActionButton.Enabled = false;
+            linkActionButton.Text = "Directly installed";
+            linkFeedbackLabel.ForeColor = AppColors.Warning;
+            linkFeedbackLabel.Text =
+                "This package exists only inside a Community folder. Move it to an addon library before managing it with symbolic links.";
+            return;
+        }
+
+        bool isEnabled = IsEnabledAtTarget(selectedAddon, target.Path);
+        linkActionButton.Enabled = true;
+        linkActionButton.Text = isEnabled ? "Disable from this folder" : "Enable in this folder";
+        linkActionButton.BackColor = isEnabled
+            ? Color.FromArgb(118, 48, 54)
+            : AppColors.AccentDark;
+        linkFeedbackLabel.ForeColor = AppColors.SecondaryText;
+        linkFeedbackLabel.Text = isEnabled
+            ? $"Disable removes only the symbolic link from {target.Name}. The source addon folder is preserved."
+            : $"Enable creates a directory symbolic link in {target.Name}. The source addon folder is never moved.";
+    }
+
+    private static bool IsEnabledAtTarget(Addon addon, string targetPath)
+    {
+        string normalizedTarget = NormalizePath(targetPath);
+        return addon.EnabledCommunityPaths.Any(path =>
+            NormalizePath(path).Equals(
+                normalizedTarget,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool MatchesLocation(
+        Addon addon,
+        string location,
+        AppSettings settings)
+    {
+        return location switch
+        {
+            "Addon libraries" => addon.IsManagedLibraryAddon,
+            "Community" => IsEnabledAtConfiguredPath(
+                addon,
+                settings.CommunityFolder),
+            "Community2024" => IsEnabledAtConfiguredPath(
+                addon,
+                settings.Community2024Folder),
+            _ => true
+        };
+    }
+
+    private static bool IsEnabledAtConfiguredPath(Addon addon, string path)
+    {
+        return !string.IsNullOrWhiteSpace(path) &&
+               IsEnabledAtTarget(addon, path);
+    }
+
+    private CommunityTarget? GetPreferredTargetFromLocationFilter()
+    {
+        AppSettings settings = settingsService.Load();
+        return locationBox.SelectedItem?.ToString() switch
+        {
+            "Community" when !string.IsNullOrWhiteSpace(settings.CommunityFolder) =>
+                new CommunityTarget("Community (default)", settings.CommunityFolder),
+            "Community2024" when
+                !string.IsNullOrWhiteSpace(settings.Community2024Folder) =>
+                new CommunityTarget("Community2024", settings.Community2024Folder),
+            _ => null
+        };
+    }
+
+    private static string GetEnabledLocationText(Addon addon)
+    {
+        return string.Join(
+            " + ",
+            addon.EnabledCommunityPaths
+                .Select(Path.GetFileName)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return Path.GetFullPath(path).TrimEnd(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar);
+    }
+
+    private static Image? LoadThumbnail(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            using FileStream stream = File.OpenRead(path);
+            using Image source = Image.FromStream(stream);
+            return new Bitmap(source);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private static void ReplaceImage(PictureBox pictureBox, Image? image)
+    {
+        Image? previousImage = pictureBox.Image;
+        pictureBox.Image = image;
+        previousImage?.Dispose();
+    }
+
+    private static void DisposeChildControls(Control parent)
+    {
+        Control[] controls = parent.Controls.Cast<Control>().ToArray();
+        parent.Controls.Clear();
+        foreach (Control control in controls)
+        {
+            control.Dispose();
+        }
+    }
+
+    private sealed record CommunityTarget(string Name, string Path)
+    {
+        public override string ToString() => Name;
     }
 }

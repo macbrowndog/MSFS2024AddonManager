@@ -4,6 +4,8 @@ public sealed class AppSettings
 {
     public string CommunityFolder { get; set; } = string.Empty;
 
+    public string Community2024Folder { get; set; } = string.Empty;
+
     public List<string> AddonLibraries { get; set; } = [];
 
     public bool AutoDetectMsfs { get; set; } = true;

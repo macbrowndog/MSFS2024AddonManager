@@ -16,5 +16,11 @@ public sealed class Addon
 
     public string Author { get; init; } = "Unknown";
 
-    public bool IsEnabled { get; init; }
+    public string? ThumbnailPath { get; init; }
+
+    public IReadOnlyList<string> EnabledCommunityPaths { get; init; } = [];
+
+    public bool IsManagedLibraryAddon { get; init; } = true;
+
+    public bool IsEnabled => EnabledCommunityPaths.Count > 0;
 }

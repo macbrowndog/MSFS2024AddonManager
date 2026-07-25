@@ -14,6 +14,8 @@ public static class Colors
 
     public static readonly Color Accent = Color.FromArgb(0, 120, 215);
 
+    public static readonly Color AccentDark = Color.FromArgb(0, 82, 148);
+
     public static readonly Color Success = Color.FromArgb(52, 199, 89);
 
     public static readonly Color Warning = Color.FromArgb(255, 159, 10);

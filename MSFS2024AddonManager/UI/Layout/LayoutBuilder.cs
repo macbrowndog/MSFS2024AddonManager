@@ -1,5 +1,6 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Views;
+using System.Security.Principal;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
@@ -49,7 +50,7 @@ public static class LayoutBuilder
 
         var version = new Label
         {
-            Text = $"Version {Application.ProductVersion}",
+            Text = $"Version {UIConstants.ApplicationVersion}  •  {UIConstants.Copyright}",
             Font = AppFonts.Small,
             ForeColor = AppColors.SecondaryText,
             AutoSize = true,
@@ -144,16 +145,50 @@ public static class LayoutBuilder
             Padding = new Padding(16, 0, 16, 0)
         };
 
-        status.Controls.Add(new Label
+        var readyLabel = new Label
         {
             Text = "Ready",
             Font = AppFonts.Status,
             ForeColor = AppColors.SecondaryText,
             AutoSize = true,
             Location = new Point(16, 9)
-        });
+        };
+
+        bool isAdministrator = IsAdministrator();
+        var privilegeLabel = new Label
+        {
+            Text = isAdministrator
+                ? "Administrator mode — symbolic links enabled"
+                : "Standard mode — run as administrator to enable or disable addons",
+            Font = AppFonts.Status,
+            ForeColor = isAdministrator ? AppColors.Success : AppColors.Warning,
+            AutoSize = true,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right
+        };
+
+        status.Controls.AddRange([readyLabel, privilegeLabel]);
+        void PositionPrivilegeLabel() =>
+            privilegeLabel.Location = new Point(
+                status.ClientSize.Width - privilegeLabel.Width - 16,
+                9);
+        status.Resize += (_, _) => PositionPrivilegeLabel();
+        PositionPrivilegeLabel();
 
         return status;
+    }
+
+    private static bool IsAdministrator()
+    {
+        try
+        {
+            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(
+                WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static Button AddNavigationButton(

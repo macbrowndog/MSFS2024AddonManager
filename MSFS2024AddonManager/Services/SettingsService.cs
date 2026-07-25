@@ -58,6 +58,18 @@ public sealed partial class SettingsService
 
     public string? DetectCommunityFolder()
     {
+        return DetectNamedCommunityFolder("Community") ??
+               GetCommunityCandidates("Community").FirstOrDefault(Directory.Exists);
+    }
+
+    public string? DetectCommunity2024Folder()
+    {
+        return DetectNamedCommunityFolder("Community2024") ??
+               GetCommunityCandidates("Community2024").FirstOrDefault(Directory.Exists);
+    }
+
+    private static string? DetectNamedCommunityFolder(string folderName)
+    {
         foreach (string configPath in GetUserConfigCandidates())
         {
             string? packagesPath = ReadInstalledPackagesPath(configPath);
@@ -66,14 +78,14 @@ public sealed partial class SettingsService
                 continue;
             }
 
-            string communityPath = Path.Combine(packagesPath, "Community");
+            string communityPath = Path.Combine(packagesPath, folderName);
             if (Directory.Exists(communityPath))
             {
                 return communityPath;
             }
         }
 
-        return GetCommunityCandidates().FirstOrDefault(Directory.Exists);
+        return null;
     }
 
     private static IEnumerable<string> GetUserConfigCandidates()
@@ -94,7 +106,7 @@ public sealed partial class SettingsService
             "UserCfg.opt");
     }
 
-    private static IEnumerable<string> GetCommunityCandidates()
+    private static IEnumerable<string> GetCommunityCandidates(string folderName)
     {
         string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string roamingAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -105,13 +117,13 @@ public sealed partial class SettingsService
             "Microsoft.Limitless_8wekyb3d8bbwe",
             "LocalCache",
             "Packages",
-            "Community");
+            folderName);
 
         yield return Path.Combine(
             roamingAppData,
             "Microsoft Flight Simulator 2024",
             "Packages",
-            "Community");
+            folderName);
     }
 
     private static string? ReadInstalledPackagesPath(string configPath)
