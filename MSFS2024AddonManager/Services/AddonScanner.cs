@@ -55,7 +55,9 @@ public sealed class AddonScanner
                 continue;
             }
 
-            foreach (string addonPath in EnumerateDirectoriesSafely(libraryPath))
+            foreach (string addonPath in EnumerateAddonPackageDirectories(
+                         libraryPath,
+                         cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 string folderName = Path.GetFileName(addonPath);
@@ -67,7 +69,7 @@ public sealed class AddonScanner
                     libraryPath,
                     enabledCommunityPaths ?? [],
                     true);
-                addons.TryAdd(folderName, addon);
+                addons.TryAdd(Path.GetFullPath(addonPath), addon);
             }
         }
 
@@ -75,7 +77,10 @@ public sealed class AddonScanner
                  enabledPathsByFolderName)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (addons.ContainsKey(folderName))
+            if (addons.Values.Any(addon =>
+                    addon.FolderName.Equals(
+                        folderName,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -87,8 +92,8 @@ public sealed class AddonScanner
                 continue;
             }
 
-            addons.Add(
-                folderName,
+            addons.TryAdd(
+                Path.GetFullPath(installedPath),
                 ReadAddon(
                     installedPath,
                     communityRoot,
@@ -117,6 +122,13 @@ public sealed class AddonScanner
             .ToArray();
         bool communityAvailable = communityFolders.Length > 0;
         int communityItems = communityFolders.Sum(folder => folder.ItemCount);
+        IReadOnlyDictionary<string, int> enabledByCategory = addons
+            .Where(addon => addon.IsEnabled)
+            .GroupBy(addon => addon.Category, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Count(),
+                StringComparer.OrdinalIgnoreCase);
 
         return new ScanSummary
         {
@@ -128,6 +140,7 @@ public sealed class AddonScanner
             DisabledAddons = addons.Count(addon => !addon.IsEnabled),
             CommunityItems = communityItems,
             CommunityFolders = communityFolders,
+            EnabledByCategory = enabledByCategory,
             CompletedAt = DateTimeOffset.Now
         };
     }
@@ -289,6 +302,60 @@ public sealed class AddonScanner
         }
     }
 
+    private static IEnumerable<string> EnumerateAddonPackageDirectories(
+        string libraryPath,
+        CancellationToken cancellationToken)
+    {
+        const int maximumDepth = 12;
+        var pending = new Queue<(string Path, int Depth)>();
+        pending.Enqueue((libraryPath, 0));
+
+        while (pending.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            (string currentPath, int depth) = pending.Dequeue();
+
+            if (depth > 0 && IsAddonPackageRoot(currentPath))
+            {
+                yield return currentPath;
+                continue;
+            }
+
+            if (depth >= maximumDepth)
+            {
+                continue;
+            }
+
+            foreach (string childPath in EnumerateDirectoriesSafely(currentPath))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!IsReparsePoint(childPath))
+                {
+                    pending.Enqueue((childPath, depth + 1));
+                }
+            }
+        }
+    }
+
+    private static bool IsAddonPackageRoot(string path)
+    {
+        return File.Exists(Path.Combine(path, "manifest.json")) ||
+               File.Exists(Path.Combine(path, "layout.json"));
+    }
+
+    private static bool IsReparsePoint(string path)
+    {
+        try
+        {
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
     public static IEnumerable<string> GetCommunityFolders(
         string configuredPath,
         string? community2024Path = null)
@@ -382,6 +449,9 @@ public sealed class ScanSummary
     public int CommunityItems { get; init; }
 
     public IReadOnlyList<CommunityFolderSummary> CommunityFolders { get; init; } = [];
+
+    public IReadOnlyDictionary<string, int> EnabledByCategory { get; init; } =
+        new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
     public DateTimeOffset CompletedAt { get; init; }
 }

@@ -26,6 +26,8 @@ public partial class MainForm : KryptonForm
 
         MinimumSize = new Size(1200, 750);
         Size = new Size(1500, 900);
+        FormBorderStyle = FormBorderStyle.Sizable;
+        MaximizeBox = true;
 
         BackColor = AppColors.Background;
 

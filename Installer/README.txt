@@ -1,5 +1,5 @@
 MSFS 2024 ADDONS MANAGER
-Version 1.0.0
+Version 1.0.1
 Andrew Brown © 2026
 
 DESCRIPTION
@@ -24,6 +24,9 @@ Main features:
 - Automatically detect common MSFS 2024 folder locations.
 - Manually select folders for custom MSFS installations.
 - Quick Scan dashboard with addon and Community folder totals.
+- Recursive package discovery for addons stored several folders deep.
+- Resizable addon-library directory tree.
+- Dashboard breakdown of enabled addons by category.
 
 
 INSTALLATION

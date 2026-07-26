@@ -14,6 +14,8 @@ public sealed class DashboardView : KryptonPanel
     private readonly Label librariesValue = CreateValueLabel();
     private readonly Label enabledValue = CreateValueLabel();
     private readonly Label disabledValue = CreateValueLabel();
+    private readonly Dictionary<string, Label> enabledCategoryValues =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly Label pathLabel = new();
     private readonly Label scanStatusLabel = new();
     private readonly Button scanButton = new();
@@ -51,16 +53,18 @@ public sealed class DashboardView : KryptonPanel
             Padding = new Padding(36, 28, 36, 28),
             BackColor = AppColors.Background,
             ColumnCount = 1,
-            RowCount = 3
+            RowCount = 4
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 178));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 158));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         page.Controls.Add(CreateHeading(), 0, 0);
         page.Controls.Add(CreateStatistics(), 0, 1);
-        page.Controls.Add(CreateCommunityPanel(), 0, 2);
+        page.Controls.Add(CreateEnabledCategoryPanel(), 0, 2);
+        page.Controls.Add(CreateCommunityPanel(), 0, 3);
         Controls.Add(page);
     }
 
@@ -110,6 +114,85 @@ public sealed class DashboardView : KryptonPanel
         grid.Controls.Add(CreateTile("ENABLED", enabledValue), 2, 0);
         grid.Controls.Add(CreateTile("DISABLED", disabledValue), 3, 0);
         return grid;
+    }
+
+    private Control CreateEnabledCategoryPanel()
+    {
+        string[] categories =
+            ["Aircraft", "Airports", "Scenery", "Liveries", "Utilities", "Other"];
+        var section = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = AppColors.Background,
+            Padding = new Padding(0, 0, 0, 14)
+        };
+        var categoryLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = AppColors.Surface,
+            ColumnCount = 1,
+            RowCount = 2
+        };
+        categoryLayout.ColumnStyles.Add(
+            new ColumnStyle(SizeType.Percent, 100));
+        categoryLayout.RowStyles.Add(
+            new RowStyle(SizeType.Absolute, 38));
+        categoryLayout.RowStyles.Add(
+            new RowStyle(SizeType.Percent, 100));
+        var grid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = AppColors.Surface,
+            Padding = new Padding(14, 0, 14, 12),
+            ColumnCount = categories.Length,
+            RowCount = 1
+        };
+        var heading = new Label
+        {
+            Text = "Enabled Categories",
+            Font = AppFonts.Title,
+            ForeColor = AppColors.Text,
+            Dock = DockStyle.Fill,
+            Padding = new Padding(18, 10, 0, 0),
+            BackColor = AppColors.Surface,
+            TextAlign = ContentAlignment.TopLeft
+        };
+
+        categoryLayout.Controls.Add(heading, 0, 0);
+        categoryLayout.Controls.Add(grid, 0, 1);
+        section.Controls.Add(categoryLayout);
+
+        foreach (string category in categories)
+        {
+            grid.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100f / categories.Length));
+            Label value = CreateCategoryValueLabel();
+            enabledCategoryValues.Add(category, value);
+            grid.Controls.Add(CreateCategoryTile(category, value));
+        }
+
+        return section;
+    }
+
+    private static Control CreateCategoryTile(string category, Label value)
+    {
+        var panel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = AppColors.SurfaceLight,
+            Margin = new Padding(4)
+        };
+        panel.Controls.Add(new Label
+        {
+            Text = category.ToUpperInvariant(),
+            Font = AppFonts.Small,
+            ForeColor = AppColors.SecondaryText,
+            AutoSize = true,
+            Location = new Point(12, 10)
+        });
+        value.Location = new Point(10, 35);
+        panel.Controls.Add(value);
+        return panel;
     }
 
     private static Control CreateTile(string title, Label value)
@@ -210,6 +293,7 @@ public sealed class DashboardView : KryptonPanel
         librariesValue.Text = settings.AddonLibraries.Count.ToString();
         enabledValue.Text = "—";
         disabledValue.Text = "—";
+        SetEnabledCategoryValues(null);
         scanStatusLabel.Text = "Run Quick Scan to refresh addon totals.";
     }
 
@@ -237,6 +321,7 @@ public sealed class DashboardView : KryptonPanel
             librariesValue.Text = $"{summary.AvailableLibraries}/{summary.ConfiguredLibraries}";
             enabledValue.Text = summary.EnabledAddons.ToString();
             disabledValue.Text = summary.DisabledAddons.ToString();
+            SetEnabledCategoryValues(summary.EnabledByCategory);
             pathLabel.Text = summary.CommunityFolders.Count == 0
                 ? "No Community folders were available."
                 : string.Join(
@@ -267,4 +352,25 @@ public sealed class DashboardView : KryptonPanel
         ForeColor = AppColors.Text,
         AutoSize = true
     };
+
+    private static Label CreateCategoryValueLabel() => new()
+    {
+        Text = "—",
+        Font = AppFonts.Title,
+        ForeColor = AppColors.Success,
+        AutoSize = true
+    };
+
+    private void SetEnabledCategoryValues(
+        IReadOnlyDictionary<string, int>? categoryCounts)
+    {
+        foreach ((string category, Label value) in enabledCategoryValues)
+        {
+            value.Text = categoryCounts is null
+                ? "—"
+                : categoryCounts.TryGetValue(category, out int count)
+                    ? count.ToString()
+                    : "0";
+        }
+    }
 }

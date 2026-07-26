@@ -13,6 +13,7 @@ public sealed class AddonsView : KryptonPanel
     private readonly KryptonTextBox searchBox = new();
     private readonly ComboBox categoryBox = new();
     private readonly ComboBox locationBox = new();
+    private readonly TreeView libraryTree = new();
     private readonly FlowLayoutPanel cardsPanel = new();
     private readonly Label resultLabel = new();
     private readonly Label emptyLabel = new();
@@ -33,6 +34,7 @@ public sealed class AddonsView : KryptonPanel
     private readonly Label linkFeedbackLabel = new();
     private IReadOnlyList<Addon> addons = [];
     private Addon? selectedAddon;
+    private string? selectedTreePath;
     private bool hasLoaded;
 
     public AddonsView()
@@ -177,6 +179,21 @@ public sealed class AddonsView : KryptonPanel
             Dock = DockStyle.Fill,
             BackColor = AppColors.Background
         };
+        var splitView = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,
+            FixedPanel = FixedPanel.None,
+            IsSplitterFixed = false,
+            SplitterWidth = 7,
+            BackColor = AppColors.SurfaceLight
+        };
+        ConfigureSplitterWhenReady(splitView);
+        var resultsHost = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = AppColors.Background
+        };
 
         cardsPanel.Dock = DockStyle.Fill;
         cardsPanel.AutoScroll = true;
@@ -192,11 +209,89 @@ public sealed class AddonsView : KryptonPanel
         emptyLabel.TextAlign = ContentAlignment.MiddleCenter;
         emptyLabel.Dock = DockStyle.Fill;
 
+        ConfigureLibraryTree();
         BuildDetailsPanel();
-        panel.Controls.Add(cardsPanel);
-        panel.Controls.Add(detailsPanel);
-        panel.Controls.Add(emptyLabel);
+        resultsHost.Controls.Add(cardsPanel);
+        resultsHost.Controls.Add(emptyLabel);
+        splitView.Panel1.BackColor = AppColors.Navigation;
+        splitView.Panel1.Controls.Add(CreateLibraryTreePanel());
+        splitView.Panel2.BackColor = AppColors.Background;
+        splitView.Panel2.Controls.Add(resultsHost);
+        splitView.Panel2.Controls.Add(detailsPanel);
+        panel.Controls.Add(splitView);
         return panel;
+    }
+
+    private static void ConfigureSplitterWhenReady(SplitContainer splitView)
+    {
+        bool hasConfiguredInitialSize = false;
+        splitView.SizeChanged += (_, _) =>
+        {
+            if (hasConfiguredInitialSize || splitView.ClientSize.Width < 720)
+            {
+                return;
+            }
+
+            const int treeMinimumWidth = 220;
+            const int addonsMinimumWidth = 400;
+            int maximumTreeWidth =
+                splitView.ClientSize.Width -
+                splitView.SplitterWidth -
+                addonsMinimumWidth;
+            int initialTreeWidth = Math.Clamp(
+                340,
+                treeMinimumWidth,
+                maximumTreeWidth);
+
+            splitView.Panel1MinSize = 0;
+            splitView.Panel2MinSize = 0;
+            splitView.SplitterDistance = initialTreeWidth;
+            splitView.Panel1MinSize = treeMinimumWidth;
+            splitView.Panel2MinSize = addonsMinimumWidth;
+            hasConfiguredInitialSize = true;
+        };
+    }
+
+    private Control CreateLibraryTreePanel()
+    {
+        var panel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = AppColors.Navigation,
+            Padding = new Padding(12, 14, 8, 12)
+        };
+        var heading = new Label
+        {
+            Text = "LIBRARY FOLDERS",
+            Dock = DockStyle.Top,
+            Height = 32,
+            Font = AppFonts.Small,
+            ForeColor = AppColors.SecondaryText,
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        panel.Controls.Add(libraryTree);
+        panel.Controls.Add(heading);
+        return panel;
+    }
+
+    private void ConfigureLibraryTree()
+    {
+        libraryTree.Dock = DockStyle.Fill;
+        libraryTree.BackColor = AppColors.Navigation;
+        libraryTree.ForeColor = AppColors.Text;
+        libraryTree.Font = AppFonts.Normal;
+        libraryTree.BorderStyle = BorderStyle.None;
+        libraryTree.HideSelection = false;
+        libraryTree.FullRowSelect = true;
+        libraryTree.ShowLines = true;
+        libraryTree.ShowRootLines = true;
+        libraryTree.ShowPlusMinus = true;
+        libraryTree.AfterSelect += (_, eventArgs) =>
+        {
+            selectedTreePath = eventArgs.Node?.Tag as string;
+            ApplyFilters();
+        };
     }
 
     private void BuildDetailsPanel()
@@ -356,6 +451,7 @@ public sealed class AddonsView : KryptonPanel
         try
         {
             addons = await addonScanner.FindAddonsAsync(settingsService.Load());
+            BuildLibraryTree();
             ApplyFilters();
         }
         finally
@@ -376,9 +472,11 @@ public sealed class AddonsView : KryptonPanel
             .Where(addon =>
                 (searchText.Length == 0 ||
                  addon.Name.Contains(searchText, StringComparison.CurrentCultureIgnoreCase) ||
-                 addon.Author.Contains(searchText, StringComparison.CurrentCultureIgnoreCase)) &&
+                 addon.Author.Contains(searchText, StringComparison.CurrentCultureIgnoreCase) ||
+                 addon.Path.Contains(searchText, StringComparison.CurrentCultureIgnoreCase)) &&
                 (category == "All categories" || addon.Category == category) &&
-                MatchesLocation(addon, location, settings))
+                MatchesLocation(addon, location, settings) &&
+                MatchesSelectedTreePath(addon))
             .ToArray();
 
         cardsPanel.SuspendLayout();
@@ -396,6 +494,135 @@ public sealed class AddonsView : KryptonPanel
         emptyLabel.Visible = filtered.Length == 0;
         cardsPanel.Visible = filtered.Length > 0;
         resultLabel.Text = $"{filtered.Length} of {addons.Count} addons";
+    }
+
+    private void BuildLibraryTree()
+    {
+        string? pathToRestore = selectedTreePath;
+        libraryTree.BeginUpdate();
+        libraryTree.Nodes.Clear();
+
+        var allNode = new TreeNode("All addon libraries");
+        libraryTree.Nodes.Add(allNode);
+        AppSettings settings = settingsService.Load();
+
+        foreach (string configuredLibrary in settings.AddonLibraries)
+        {
+            string libraryPath = NormalizePath(configuredLibrary);
+            if (libraryPath.Length == 0)
+            {
+                continue;
+            }
+
+            var libraryNode = new TreeNode(Path.GetFileName(libraryPath))
+            {
+                Tag = libraryPath,
+                ToolTipText = libraryPath
+            };
+            allNode.Nodes.Add(libraryNode);
+
+            foreach (Addon addon in addons.Where(addon =>
+                         addon.IsManagedLibraryAddon &&
+                         NormalizePath(addon.LibraryPath).Equals(
+                             libraryPath,
+                             StringComparison.OrdinalIgnoreCase)))
+            {
+                AddAddonPathToTree(libraryNode, libraryPath, addon.Path);
+            }
+        }
+
+        allNode.Expand();
+        libraryTree.SelectedNode =
+            FindTreeNodeByPath(libraryTree.Nodes, pathToRestore) ?? allNode;
+        selectedTreePath = libraryTree.SelectedNode.Tag as string;
+        libraryTree.EndUpdate();
+    }
+
+    private static void AddAddonPathToTree(
+        TreeNode libraryNode,
+        string libraryPath,
+        string addonPath)
+    {
+        string relativePath;
+        try
+        {
+            relativePath = Path.GetRelativePath(libraryPath, addonPath);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+
+        TreeNode parent = libraryNode;
+        string currentPath = libraryPath;
+        foreach (string segment in relativePath.Split(
+                     Path.DirectorySeparatorChar,
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            currentPath = Path.Combine(currentPath, segment);
+            TreeNode? child = parent.Nodes
+                .Cast<TreeNode>()
+                .FirstOrDefault(node =>
+                    node.Text.Equals(segment, StringComparison.OrdinalIgnoreCase));
+            if (child is null)
+            {
+                child = new TreeNode(segment)
+                {
+                    Tag = currentPath,
+                    ToolTipText = currentPath
+                };
+                parent.Nodes.Add(child);
+            }
+
+            parent = child;
+        }
+    }
+
+    private static TreeNode? FindTreeNodeByPath(
+        TreeNodeCollection nodes,
+        string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        foreach (TreeNode node in nodes)
+        {
+            if (node.Tag is string nodePath &&
+                NormalizePath(nodePath).Equals(
+                    NormalizePath(path),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return node;
+            }
+
+            TreeNode? childMatch = FindTreeNodeByPath(node.Nodes, path);
+            if (childMatch is not null)
+            {
+                return childMatch;
+            }
+        }
+
+        return null;
+    }
+
+    private bool MatchesSelectedTreePath(Addon addon)
+    {
+        if (string.IsNullOrWhiteSpace(selectedTreePath))
+        {
+            return true;
+        }
+
+        string selectedPath = NormalizePath(selectedTreePath);
+        string addonPath = NormalizePath(addon.Path);
+        if (addonPath.Equals(selectedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string prefix = selectedPath + Path.DirectorySeparatorChar;
+        return addonPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 
     private void AddAddonSection(

@@ -1,0 +1,18 @@
+MSFS 2024 ADDONS MANAGER
+Version 1.0.1
+Andrew Brown © 2026
+
+VERSION 1.0.1 CHANGES
+---------------------
+- Added recursive addon discovery for packages stored two or more folders deep.
+- Added a directory tree for browsing addon-library folders.
+- Added folder selection to filter addons by directory and subdirectories.
+- Made the directory tree width adjustable with a draggable divider.
+- Prevented container folders from being incorrectly listed as addons.
+- Added enabled-addon totals for Aircraft, Airports, Scenery, Liveries,
+  Utilities, and Other to the Dashboard.
+- Fixed the directory-tree splitter startup error.
+- Added the visible "Enabled Categories" heading.
+
+The application continues to support Community and Community2024, multiple
+addon libraries, profiles, thumbnails, and safe symbolic-link management.
