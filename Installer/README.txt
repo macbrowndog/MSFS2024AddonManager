@@ -1,5 +1,5 @@
 MSFS 2024 ADDONS MANAGER
-Version 1.0.1
+Version 1.0.2
 Andrew Brown © 2026
 
 DESCRIPTION
@@ -27,6 +27,7 @@ Main features:
 - Recursive package discovery for addons stored several folders deep.
 - Resizable addon-library directory tree.
 - Dashboard breakdown of enabled addons by category.
+- DPI-safe typography for resized windows and high-resolution displays.
 
 
 INSTALLATION

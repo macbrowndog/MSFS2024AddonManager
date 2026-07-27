@@ -11,6 +11,6 @@ public static class UIConstants
     public const int StatusHeight = 34;
 
     public const string ApplicationTitle = "MSFS 2024 Addons Manager";
-    public const string ApplicationVersion = "1.0.1";
+    public const string ApplicationVersion = "1.0.2";
     public const string Copyright = "Andrew Brown © 2026";
 }

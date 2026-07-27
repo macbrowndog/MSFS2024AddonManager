@@ -2,6 +2,7 @@ using Krypton.Toolkit;
 using System.Drawing;
 using MSFS2024AddonManager.UI.Layout;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
+using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
 namespace MSFS2024AddonManager;
 
@@ -28,6 +29,8 @@ public partial class MainForm : KryptonForm
         Size = new Size(1500, 900);
         FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = true;
+        AutoScaleMode = AutoScaleMode.None;
+        Font = AppFonts.Normal;
 
         BackColor = AppColors.Background;
 

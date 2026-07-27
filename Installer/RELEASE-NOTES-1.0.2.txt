@@ -1,0 +1,26 @@
+MSFS 2024 ADDONS MANAGER
+Version 1.0.2
+Andrew Brown © 2026
+
+VERSION 1.0.2 CHANGES
+---------------------
+- Fixed text and controls becoming oversized when Windows display scaling
+  was set above 100%.
+- Fixed clipped headings, navigation labels, dashboard totals, category
+  tiles, paths, and buttons when resizing the application window.
+- Added DPI-safe pixel-based typography across the application.
+- Disabled the duplicate WinForms font-scaling pass used by the
+  programmatically built interface.
+- Retained normal window resizing, maximising, and the adjustable addon
+  directory-tree divider.
+
+VERSION 1.0.1 HIGHLIGHTS
+------------------------
+- Recursive discovery of addons stored several folders deep.
+- Resizable addon-library directory tree.
+- Dashboard breakdown of enabled addons by category.
+- Community and Community2024 management.
+
+The application continues to include the .NET 10 runtime check, multiple
+addon libraries, profiles, thumbnails, scanning diagnostics, and safe
+symbolic-link management.
