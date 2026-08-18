@@ -8,7 +8,24 @@ public sealed class AddonProfile
 
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.Now;
 
+    public List<ProfileAddonReference> Addons { get; set; } = [];
+
+    // Retained for automatic migration from profiles created before stable
+    // package references were introduced.
     public List<string> AddonFolderNames { get; set; } = [];
+
+    public int AssignmentCount => Addons.Count + AddonFolderNames.Count;
+}
+
+public sealed class ProfileAddonReference
+{
+    public required string PackageIdentity { get; init; }
+
+    public required string SourcePath { get; init; }
+
+    public string DisplayName { get; init; } = string.Empty;
+
+    public string FolderName { get; init; } = string.Empty;
 }
 
 public sealed class ProfileCollection

@@ -11,49 +11,31 @@ public sealed partial class SettingsService
         WriteIndented = true
     };
 
-    private readonly string settingsPath;
+    private readonly AtomicJsonFileStore<AppSettings> store;
 
     public SettingsService()
-    {
-        string settingsFolder = Path.Combine(
+        : this(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "MSFS2024AddonManager");
+            "MSFS2024AddonManager",
+            "settings.json"))
+    {
+    }
 
-        settingsPath = Path.Combine(settingsFolder, "settings.json");
+    internal SettingsService(string settingsPath)
+    {
+        store = new AtomicJsonFileStore<AppSettings>(settingsPath, JsonOptions);
     }
 
     public AppSettings Load()
     {
-        try
-        {
-            if (!File.Exists(settingsPath))
-            {
-                return new AppSettings();
-            }
-
-            return JsonSerializer.Deserialize<AppSettings>(
-                File.ReadAllText(settingsPath),
-                JsonOptions) ?? new AppSettings();
-        }
-        catch (JsonException)
-        {
-            return new AppSettings();
-        }
-        catch (IOException)
-        {
-            return new AppSettings();
-        }
+        return store.Load(
+            static () => new AppSettings(),
+            static settings => settings.AddonLibraries ??= []);
     }
 
     public void Save(AppSettings settings)
     {
-        string? folder = Path.GetDirectoryName(settingsPath);
-        if (!string.IsNullOrWhiteSpace(folder))
-        {
-            Directory.CreateDirectory(folder);
-        }
-
-        File.WriteAllText(settingsPath, JsonSerializer.Serialize(settings, JsonOptions));
+        store.Save(settings);
     }
 
     public string? DetectCommunityFolder()

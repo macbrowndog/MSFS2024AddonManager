@@ -10,6 +10,10 @@ public sealed class Addon
 
     public required string LibraryPath { get; init; }
 
+    public string PackageIdentity { get; init; } = string.Empty;
+
+    public string CanonicalPath { get; init; } = string.Empty;
+
     public string Category { get; init; } = "Other";
 
     public string Version { get; init; } = "Unknown";

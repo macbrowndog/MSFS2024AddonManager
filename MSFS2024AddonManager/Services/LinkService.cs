@@ -1,11 +1,42 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using MSFS2024AddonManager.Models;
 
 namespace MSFS2024AddonManager.Services;
 
-public sealed class LinkService
+public sealed class LinkService : IAddonLinkService
 {
+    private readonly ILinkFileSystem fileSystem;
+    private readonly ISimulatorProcessDetector simulatorProcessDetector;
+
+    public LinkService()
+        : this(new PhysicalLinkFileSystem(), new Msfs2024ProcessDetector())
+    {
+    }
+
+    public LinkService(ILinkFileSystem fileSystem)
+        : this(fileSystem, new Msfs2024ProcessDetector())
+    {
+    }
+
+    public LinkService(
+        ILinkFileSystem fileSystem,
+        ISimulatorProcessDetector simulatorProcessDetector)
+    {
+        this.fileSystem = fileSystem ??
+            throw new ArgumentNullException(nameof(fileSystem));
+        this.simulatorProcessDetector = simulatorProcessDetector ??
+            throw new ArgumentNullException(nameof(simulatorProcessDetector));
+    }
+
     public LinkOperationResult Enable(Addon addon, string communityFolder)
     {
+        LinkOperationResult? simulatorStateFailure = ValidateSimulatorState();
+        if (simulatorStateFailure is not null)
+        {
+            return simulatorStateFailure;
+        }
+
         string? validationError = ValidatePaths(addon, communityFolder);
         if (validationError is not null)
         {
@@ -13,12 +44,11 @@ public sealed class LinkService
         }
 
         string linkPath = GetLinkPath(communityFolder, addon.FolderName);
-        DirectoryInfo linkInfo = new(linkPath);
-        string? existingLinkTarget = GetLinkTarget(linkInfo);
+        string? existingLinkTarget = GetLinkTarget(linkPath);
 
         if (existingLinkTarget is not null)
         {
-            string resolvedTarget = ResolveLinkTarget(linkInfo, existingLinkTarget);
+            string resolvedTarget = ResolveLinkTarget(linkPath, existingLinkTarget);
             if (PathsEqual(resolvedTarget, addon.Path))
             {
                 return LinkOperationResult.Succeeded(
@@ -31,7 +61,7 @@ public sealed class LinkService
                 linkPath);
         }
 
-        if (Directory.Exists(linkPath) || File.Exists(linkPath))
+        if (fileSystem.DirectoryExists(linkPath) || fileSystem.FileExists(linkPath))
         {
             return LinkOperationResult.Failed(
                 "A real file or folder already exists in the selected Community folder with this name. Nothing was overwritten.",
@@ -40,7 +70,7 @@ public sealed class LinkService
 
         try
         {
-            Directory.CreateSymbolicLink(linkPath, addon.Path);
+            fileSystem.CreateDirectorySymbolicLink(linkPath, addon.Path);
             return LinkOperationResult.Succeeded(
                 "Addon enabled with a directory symbolic link.",
                 linkPath);
@@ -62,6 +92,12 @@ public sealed class LinkService
 
     public LinkOperationResult Disable(Addon addon, string communityFolder)
     {
+        LinkOperationResult? simulatorStateFailure = ValidateSimulatorState();
+        if (simulatorStateFailure is not null)
+        {
+            return simulatorStateFailure;
+        }
+
         string? validationError = ValidateCommunityFolder(communityFolder);
         if (validationError is not null)
         {
@@ -69,11 +105,10 @@ public sealed class LinkService
         }
 
         string linkPath = GetLinkPath(communityFolder, addon.FolderName);
-        DirectoryInfo linkInfo = new(linkPath);
-        string? existingLinkTarget = GetLinkTarget(linkInfo);
+        string? existingLinkTarget = GetLinkTarget(linkPath);
         if (existingLinkTarget is null)
         {
-            if (Directory.Exists(linkPath) || File.Exists(linkPath))
+            if (fileSystem.DirectoryExists(linkPath) || fileSystem.FileExists(linkPath))
             {
                 return LinkOperationResult.Failed(
                     "This Community item is a real file or folder, not a symbolic link. Nothing was deleted.",
@@ -85,7 +120,7 @@ public sealed class LinkService
                 linkPath);
         }
 
-        string resolvedTarget = ResolveLinkTarget(linkInfo, existingLinkTarget);
+        string resolvedTarget = ResolveLinkTarget(linkPath, existingLinkTarget);
         if (!PathsEqual(resolvedTarget, addon.Path))
         {
             return LinkOperationResult.Failed(
@@ -95,7 +130,7 @@ public sealed class LinkService
 
         try
         {
-            Directory.Delete(linkPath);
+            fileSystem.DeleteDirectory(linkPath);
             return LinkOperationResult.Succeeded(
                 "Addon disabled. The source addon folder was not moved or deleted.",
                 linkPath);
@@ -109,9 +144,9 @@ public sealed class LinkService
         }
     }
 
-    private static string? ValidatePaths(Addon addon, string communityFolder)
+    private string? ValidatePaths(Addon addon, string communityFolder)
     {
-        if (!Directory.Exists(addon.Path))
+        if (!fileSystem.DirectoryExists(addon.Path))
         {
             return "The source addon folder no longer exists.";
         }
@@ -119,14 +154,24 @@ public sealed class LinkService
         return ValidateCommunityFolder(communityFolder);
     }
 
-    private static string? ValidateCommunityFolder(string communityFolder)
+    private LinkOperationResult? ValidateSimulatorState() =>
+        simulatorProcessDetector.GetState() switch
+        {
+            SimulatorProcessState.NotRunning => null,
+            SimulatorProcessState.Running => LinkOperationResult.Failed(
+                "Microsoft Flight Simulator 2024 is running. Close it before enabling or disabling addons."),
+            _ => LinkOperationResult.Failed(
+                "The manager could not verify whether Microsoft Flight Simulator 2024 is running. Close MSFS and try again.")
+        };
+
+    private string? ValidateCommunityFolder(string communityFolder)
     {
         if (string.IsNullOrWhiteSpace(communityFolder))
         {
             return "Select the MSFS 2024 Community folder in Settings first.";
         }
 
-        return Directory.Exists(communityFolder)
+        return fileSystem.DirectoryExists(communityFolder)
             ? null
             : "The configured Community folder does not exist or is unavailable.";
     }
@@ -147,11 +192,11 @@ public sealed class LinkService
         return linkPath;
     }
 
-    private static string? GetLinkTarget(DirectoryInfo linkInfo)
+    private string? GetLinkTarget(string linkPath)
     {
         try
         {
-            return linkInfo.LinkTarget;
+            return fileSystem.GetDirectoryLinkTarget(linkPath);
         }
         catch (Exception exception) when (
             exception is IOException or UnauthorizedAccessException)
@@ -161,7 +206,7 @@ public sealed class LinkService
     }
 
     private static string ResolveLinkTarget(
-        DirectoryInfo linkInfo,
+        string linkPath,
         string linkTarget)
     {
         if (Path.IsPathRooted(linkTarget))
@@ -170,7 +215,7 @@ public sealed class LinkService
         }
 
         return Path.GetFullPath(Path.Combine(
-            linkInfo.Parent?.FullName ?? string.Empty,
+            Path.GetDirectoryName(linkPath) ?? string.Empty,
             linkTarget));
     }
 
@@ -182,6 +227,84 @@ public sealed class LinkService
             Path.GetFullPath(second)
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
             StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public interface IAddonLinkService
+{
+    LinkOperationResult Enable(Addon addon, string communityFolder);
+
+    LinkOperationResult Disable(Addon addon, string communityFolder);
+}
+
+public interface ILinkFileSystem
+{
+    bool DirectoryExists(string path);
+
+    bool FileExists(string path);
+
+    string? GetDirectoryLinkTarget(string path);
+
+    void CreateDirectorySymbolicLink(string path, string targetPath);
+
+    void DeleteDirectory(string path);
+}
+
+public interface ISimulatorProcessDetector
+{
+    SimulatorProcessState GetState();
+}
+
+public enum SimulatorProcessState
+{
+    Unknown,
+    NotRunning,
+    Running
+}
+
+internal sealed class PhysicalLinkFileSystem : ILinkFileSystem
+{
+    public bool DirectoryExists(string path) => Directory.Exists(path);
+
+    public bool FileExists(string path) => File.Exists(path);
+
+    public string? GetDirectoryLinkTarget(string path) =>
+        new DirectoryInfo(path).LinkTarget;
+
+    public void CreateDirectorySymbolicLink(string path, string targetPath) =>
+        Directory.CreateSymbolicLink(path, targetPath);
+
+    public void DeleteDirectory(string path) => Directory.Delete(path);
+}
+
+internal sealed class Msfs2024ProcessDetector : ISimulatorProcessDetector
+{
+    private const string ProcessName = "FlightSimulator2024";
+
+    public SimulatorProcessState GetState()
+    {
+        Process[] processes = [];
+        try
+        {
+            processes = Process.GetProcessesByName(ProcessName);
+            return processes.Length > 0
+                ? SimulatorProcessState.Running
+                : SimulatorProcessState.NotRunning;
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+                Win32Exception or
+                NotSupportedException)
+        {
+            return SimulatorProcessState.Unknown;
+        }
+        finally
+        {
+            foreach (Process process in processes)
+            {
+                process.Dispose();
+            }
+        }
     }
 }
 

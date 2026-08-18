@@ -7,20 +7,19 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
-    <Version>1.0.2</Version>
-    <AssemblyVersion>1.0.2.0</AssemblyVersion>
-    <FileVersion>1.0.2.0</FileVersion>
-    <InformationalVersion>1.0.2</InformationalVersion>
+    <Version>2.0.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Authors>Andrew Brown</Authors>
     <Company>Andrew Brown</Company>
     <Product>MSFS 2024 Addons Manager</Product>
     <Description>Manage MSFS 2024 addon libraries, profiles, and Community folders.</Description>
     <Copyright>Andrew Brown © 2026</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/macbrowndog/MSFS2024AddonManager</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FontAwesome.Sharp.Pro" Version="6.6.0" />
     <PackageReference Include="Krypton.Toolkit" Version="105.26.7.201" />
   </ItemGroup>
 
@@ -30,11 +29,6 @@
     <Folder Include="Themes\" />
     <Folder Include="Resources\" />
     <Folder Include="UI\Icons\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\MSFS2024AddonManger.core\MSFS2024AddonManager.Core.csproj" />
-    <ProjectReference Include="..\MSFS2024AddonManger.Services\MSFS2024AddonManager.Services.csproj" />
   </ItemGroup>
 
 </Project>

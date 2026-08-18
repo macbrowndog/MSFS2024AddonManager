@@ -14,6 +14,7 @@ public sealed class ProfilesView : KryptonPanel
     private readonly Label emptyLabel = new();
     private readonly Label summaryLabel = new();
     private ProfileCollection collection;
+    private bool applyInProgress;
 
     public ProfilesView()
     {
@@ -62,7 +63,7 @@ public sealed class ProfilesView : KryptonPanel
         });
         panel.Controls.Add(new Label
         {
-            Text = "Prepare different addon sets for airliners, VFR, VR, testing, or any other scenario.",
+            Text = "Build, preview, and apply addon sets for airliners, VFR, VR, testing, or any other scenario.",
             Font = AppFonts.Normal,
             ForeColor = AppColors.SecondaryText,
             AutoSize = true,
@@ -176,6 +177,96 @@ public sealed class ProfilesView : KryptonPanel
         RefreshProfiles();
     }
 
+    private async void ApplyProfile(AddonProfile profile)
+    {
+        if (applyInProgress)
+        {
+            return;
+        }
+
+        applyInProgress = true;
+        RefreshProfiles();
+        try
+        {
+            AppSettings settings = new SettingsService().Load();
+            if (string.IsNullOrWhiteSpace(settings.CommunityFolder) ||
+                !Directory.Exists(settings.CommunityFolder))
+            {
+                KryptonMessageBox.Show(
+                    this,
+                    "Configure an available default Community folder in Settings before applying a profile.",
+                    "Community folder unavailable",
+                    KryptonMessageBoxButtons.OK,
+                    KryptonMessageBoxIcon.Warning);
+                return;
+            }
+
+            IReadOnlyList<Addon> addons = await new AddonScanner()
+                .FindAddonsAsync(settings);
+            if (ProfileAssignmentService.MigrateLegacyAssignments(
+                    profile,
+                    addons) > 0)
+            {
+                profileService.Save(collection);
+            }
+
+            var applyService = new ProfileApplyService(new LinkService());
+            ProfileApplyPlan plan = applyService.BuildPlan(
+                profile,
+                addons,
+                settings.CommunityFolder);
+
+            if (!plan.CanApply)
+            {
+                KryptonMessageBox.Show(
+                    this,
+                    string.Join("\r\n\r\n", plan.Errors),
+                    "Profile cannot be applied",
+                    KryptonMessageBoxButtons.OK,
+                    KryptonMessageBoxIcon.Warning);
+                return;
+            }
+
+            using var preview = new ProfileApplyPreviewDialog(plan);
+            if (preview.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            ProfileApplyResult result = await Task.Run(() => applyService.Apply(plan));
+            if (result.Success)
+            {
+                collection.ActiveProfileId = profile.Id;
+                profileService.Save(collection);
+            }
+
+            KryptonMessageBox.Show(
+                this,
+                result.Message,
+                result.Success ? "Profile applied" : "Profile apply failed",
+                KryptonMessageBoxButtons.OK,
+                result.Success
+                    ? KryptonMessageBoxIcon.Information
+                    : KryptonMessageBoxIcon.Error);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException)
+        {
+            KryptonMessageBox.Show(
+                this,
+                $"The profile could not be prepared: {exception.Message}",
+                "Profile apply failed",
+                KryptonMessageBoxButtons.OK,
+                KryptonMessageBoxIcon.Error);
+        }
+        finally
+        {
+            applyInProgress = false;
+            collection = profileService.Load();
+            RefreshProfiles();
+        }
+    }
+
     private void DeleteProfile(AddonProfile profile)
     {
         DialogResult result = KryptonMessageBox.Show(
@@ -226,7 +317,7 @@ public sealed class ProfilesView : KryptonPanel
         bool isActive = collection.ActiveProfileId == profile.Id;
         var card = new Panel
         {
-            Size = new Size(340, 190),
+            Size = new Size(340, 238),
             BackColor = isActive ? AppColors.SurfaceLight : AppColors.Surface,
             Margin = new Padding(0, 0, 16, 16)
         };
@@ -242,7 +333,7 @@ public sealed class ProfilesView : KryptonPanel
         });
         card.Controls.Add(new Label
         {
-            Text = isActive ? "● ACTIVE PROFILE" : "○ INACTIVE",
+            Text = isActive ? "● EDITING PROFILE" : "○ NOT SELECTED",
             Font = AppFonts.Small,
             ForeColor = isActive ? AppColors.Success : AppColors.SecondaryText,
             AutoSize = true,
@@ -250,27 +341,35 @@ public sealed class ProfilesView : KryptonPanel
         });
         card.Controls.Add(new Label
         {
-            Text = $"{profile.AddonFolderNames.Count} assigned addons",
+            Text = $"{profile.AssignmentCount} assigned addons",
             Font = AppFonts.Normal,
             ForeColor = AppColors.SecondaryText,
             AutoSize = true,
             Location = new Point(20, 88)
         });
 
+        KryptonButton applyButton = CreateButton(
+            "Preview & apply",
+            () => ApplyProfile(profile));
+        applyButton.Location = new Point(20, 126);
+        applyButton.Size = new Size(216, 38);
+        applyButton.Enabled = !applyInProgress;
+
         KryptonButton activateButton = CreateButton(
-            isActive ? "Active" : "Make active",
+            isActive ? "Editing" : "Edit addons",
             () => ActivateProfile(profile));
-        activateButton.Location = new Point(20, 132);
-        activateButton.Enabled = !isActive;
+        activateButton.Location = new Point(20, 178);
+        activateButton.Enabled = !isActive && !applyInProgress;
 
         KryptonButton deleteButton = CreateButton(
             "Delete",
             () => DeleteProfile(profile));
-        deleteButton.Location = new Point(136, 132);
+        deleteButton.Location = new Point(136, 178);
+        deleteButton.Enabled = !applyInProgress;
         deleteButton.StateCommon.Back.Color1 = AppColors.SurfaceLight;
         deleteButton.StateCommon.Back.Color2 = AppColors.SurfaceLight;
 
-        card.Controls.AddRange([activateButton, deleteButton]);
+        card.Controls.AddRange([applyButton, activateButton, deleteButton]);
         return card;
     }
 

@@ -2,8 +2,10 @@ $ErrorActionPreference = "Stop"
 
 $applicationName = "MSFS 2024 Addons Manager"
 $applicationExe = Join-Path $PSScriptRoot "MSFS2024AddonManager.exe"
-$runtimeInstallerUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe"
-$runtimeInstaller = Join-Path $env:TEMP "windowsdesktop-runtime-10.0.9-win-x64.exe"
+$runtimeInstallerUrl = "https://aka.ms/dotnet/10.0/windowsdesktop-runtime-win-x64.exe"
+$runtimeInstaller = Join-Path `
+    ([IO.Path]::GetTempPath()) `
+    "windowsdesktop-runtime-$([Guid]::NewGuid().ToString('N')).exe"
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -53,6 +55,13 @@ if (-not (Test-DotNet10DesktopRuntime)) {
 
     try {
         Invoke-WebRequest -Uri $runtimeInstallerUrl -OutFile $runtimeInstaller
+
+        $signature = Get-AuthenticodeSignature -FilePath $runtimeInstaller
+        if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+            $signature.SignerCertificate.Subject -notmatch "(^|,\s*)CN=Microsoft Corporation(,|$)") {
+            throw "The downloaded .NET installer does not have a valid Microsoft Authenticode signature."
+        }
+
         $installerProcess = Start-Process $runtimeInstaller `
             -ArgumentList "/install", "/passive", "/norestart" `
             -Wait `

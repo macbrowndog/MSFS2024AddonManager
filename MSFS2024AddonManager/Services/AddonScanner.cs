@@ -25,26 +25,22 @@ public sealed class AddonScanner
         AppSettings settings,
         CancellationToken cancellationToken)
     {
-        var enabledPathsByFolderName =
-            new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var communityEntries = new List<CommunityPackageEntry>();
         foreach (string communityPath in GetCommunityFolders(
                      settings.CommunityFolder,
                      settings.Community2024Folder))
         {
             foreach (string enabledPath in EnumerateDirectoriesSafely(communityPath))
             {
-                string folderName = Path.GetFileName(enabledPath);
-                if (!enabledPathsByFolderName.TryGetValue(
-                        folderName,
-                        out List<string>? enabledPaths))
-                {
-                    enabledPaths = [];
-                    enabledPathsByFolderName.Add(folderName, enabledPaths);
-                }
-
-                enabledPaths.Add(communityPath);
+                communityEntries.Add(new CommunityPackageEntry(
+                    enabledPath,
+                    communityPath,
+                    GetCanonicalLinkTarget(enabledPath)));
             }
         }
+
+        IReadOnlyDictionary<string, IReadOnlyList<string>> enabledPathsBySourcePath =
+            IndexEnabledCommunityPathsBySource(communityEntries);
 
         var addons = new Dictionary<string, Addon>(StringComparer.OrdinalIgnoreCase);
         foreach (string libraryPath in settings.AddonLibraries)
@@ -60,45 +56,45 @@ public sealed class AddonScanner
                          cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string folderName = Path.GetFileName(addonPath);
-                enabledPathsByFolderName.TryGetValue(
-                    folderName,
-                    out List<string>? enabledCommunityPaths);
+                string canonicalAddonPath = AddonIdentity.CanonicalizePath(addonPath);
+                enabledPathsBySourcePath.TryGetValue(
+                    canonicalAddonPath,
+                    out IReadOnlyList<string>? enabledCommunityPaths);
                 Addon addon = ReadAddon(
                     addonPath,
                     libraryPath,
                     enabledCommunityPaths ?? [],
-                    true);
-                addons.TryAdd(Path.GetFullPath(addonPath), addon);
+                    true,
+                    canonicalAddonPath);
+                addons.TryAdd(canonicalAddonPath, addon);
             }
         }
 
-        foreach ((string folderName, List<string> enabledCommunityPaths) in
-                 enabledPathsByFolderName)
+        var managedSourcePaths = addons.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (CommunityPackageEntry entry in communityEntries)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (addons.Values.Any(addon =>
-                    addon.FolderName.Equals(
-                        folderName,
-                        StringComparison.OrdinalIgnoreCase)))
+            if (entry.LinkTargetPath is not null &&
+                managedSourcePaths.Contains(entry.LinkTargetPath))
             {
                 continue;
             }
 
-            string communityRoot = enabledCommunityPaths[0];
-            string installedPath = Path.Combine(communityRoot, folderName);
-            if (!Directory.Exists(installedPath))
+            if (!Directory.Exists(entry.InstalledPath))
             {
                 continue;
             }
 
+            string canonicalInstalledPath = AddonIdentity.CanonicalizePath(
+                entry.InstalledPath);
             addons.TryAdd(
-                Path.GetFullPath(installedPath),
+                canonicalInstalledPath,
                 ReadAddon(
-                    installedPath,
-                    communityRoot,
-                    enabledCommunityPaths,
-                    false));
+                    entry.InstalledPath,
+                    entry.CommunityPath,
+                    [entry.CommunityPath],
+                    false,
+                    entry.LinkTargetPath ?? canonicalInstalledPath));
         }
 
         return addons.Values
@@ -149,7 +145,8 @@ public sealed class AddonScanner
         string addonPath,
         string libraryPath,
         IReadOnlyList<string> enabledCommunityPaths,
-        bool isManagedLibraryAddon)
+        bool isManagedLibraryAddon,
+        string? canonicalSourcePath = null)
     {
         string folderName = Path.GetFileName(addonPath);
         string name = folderName;
@@ -192,6 +189,13 @@ public sealed class AddonScanner
             FolderName = folderName,
             Path = addonPath,
             LibraryPath = libraryPath,
+            PackageIdentity = AddonIdentity.CreatePackageIdentity(
+                folderName,
+                name,
+                author,
+                contentType),
+            CanonicalPath = canonicalSourcePath ??
+                AddonIdentity.CanonicalizePath(addonPath),
             Category = InferCategory(contentType, folderName),
             Version = version,
             Author = author,
@@ -356,6 +360,48 @@ public sealed class AddonScanner
         }
     }
 
+    private static string? GetCanonicalLinkTarget(string path)
+    {
+        try
+        {
+            var info = new DirectoryInfo(path);
+            string? linkTarget = info.LinkTarget;
+            if (linkTarget is null)
+            {
+                return null;
+            }
+
+            string resolvedTarget = Path.IsPathRooted(linkTarget)
+                ? linkTarget
+                : Path.Combine(info.Parent?.FullName ?? string.Empty, linkTarget);
+            return AddonIdentity.CanonicalizePath(resolvedTarget);
+        }
+        catch (Exception exception) when (
+            exception is IOException or
+                UnauthorizedAccessException or
+                ArgumentException or
+                NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    internal static IReadOnlyDictionary<string, IReadOnlyList<string>>
+        IndexEnabledCommunityPathsBySource(
+            IEnumerable<CommunityPackageEntry> communityEntries) =>
+        communityEntries
+            .Where(entry => entry.LinkTargetPath is not null)
+            .GroupBy(
+                entry => entry.LinkTargetPath!,
+                StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<string>)group
+                    .Select(entry => entry.CommunityPath)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+
     public static IEnumerable<string> GetCommunityFolders(
         string configuredPath,
         string? community2024Path = null)
@@ -460,3 +506,8 @@ public sealed record CommunityFolderSummary(
     string Path,
     string Name,
     int ItemCount);
+
+internal sealed record CommunityPackageEntry(
+    string InstalledPath,
+    string CommunityPath,
+    string? LinkTargetPath);

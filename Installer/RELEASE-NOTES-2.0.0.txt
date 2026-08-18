@@ -1,0 +1,46 @@
+MSFS 2024 ADDONS MANAGER
+Version 2.0.0
+Andrew Brown © 2026
+
+VERSION 2.0.0 HIGHLIGHTS
+------------------------
+- Profiles are now functional. Preview the exact enable and disable plan,
+  apply it transactionally, and automatically roll back completed changes if
+  an operation fails.
+- Addons now use a stable package identity and canonical source path, keeping
+  same-named packages in different libraries distinct. Unambiguous legacy
+  profile assignments migrate automatically.
+- Enable, disable, and profile-apply operations are blocked while Microsoft
+  Flight Simulator 2024 is running.
+- Link handling now refuses real-folder collisions, wrong-target links,
+  broken links, duplicate destination names, and unsafe unavailable sources.
+- Settings and profiles are saved atomically, validated before replacement,
+  and protected by one backup. Valid backups are restored after corruption;
+  invalid files are preserved and reported instead of silently reset.
+- Unexpected application errors are written to a bounded rolling local log.
+  Diagnostic exports redact user, configured, drive-letter, and UNC paths.
+
+STORAGE AND FILESYSTEM SAFETY
+-----------------------------
+- Improved handling and diagnostics for local, removable, and UNC libraries.
+- Unavailable source libraries are reported without treating their packages as
+  safe link targets.
+- Added automated coverage for real-folder collisions, wrong and broken links,
+  duplicate names, UNC paths, removable drives, and unavailable libraries.
+
+DISTRIBUTION
+------------
+- Added a recommended self-contained Windows x64 archive that includes .NET.
+- Added a smaller framework-dependent Windows x64 archive whose launcher uses
+  Microsoft's current .NET 10 Desktop Runtime servicing-channel download.
+- Added SHA-256 checksums and automated GitHub Release publishing.
+- Release executables are Authenticode-signed when repository signing secrets
+  are configured; each archive states its signing status.
+- Added MIT licensing, third-party notices, contribution guidance, security
+  reporting guidance, and release-maintainer documentation.
+
+IMPORTANT
+---------
+Close Microsoft Flight Simulator before changing enabled addons. Keep source
+libraries available while their addons are enabled, especially removable and
+network storage. Review the profile preview before applying large changes.

@@ -10,49 +10,39 @@ public sealed class ProfileService
         WriteIndented = true
     };
 
-    private readonly string profilesPath;
+    private readonly AtomicJsonFileStore<ProfileCollection> store;
 
     public ProfileService()
-    {
-        profilesPath = Path.Combine(
+        : this(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "MSFS2024AddonManager",
-            "profiles.json");
+            "profiles.json"))
+    {
+    }
+
+    internal ProfileService(string profilesPath)
+    {
+        store = new AtomicJsonFileStore<ProfileCollection>(profilesPath, JsonOptions);
     }
 
     public ProfileCollection Load()
     {
-        try
-        {
-            if (!File.Exists(profilesPath))
-            {
-                return new ProfileCollection();
-            }
-
-            return JsonSerializer.Deserialize<ProfileCollection>(
-                File.ReadAllText(profilesPath),
-                JsonOptions) ?? new ProfileCollection();
-        }
-        catch (JsonException)
-        {
-            return new ProfileCollection();
-        }
-        catch (IOException)
-        {
-            return new ProfileCollection();
-        }
+        return store.Load(static () => new ProfileCollection(), Normalize);
     }
 
     public void Save(ProfileCollection collection)
     {
-        string? folder = Path.GetDirectoryName(profilesPath);
-        if (!string.IsNullOrWhiteSpace(folder))
-        {
-            Directory.CreateDirectory(folder);
-        }
+        Normalize(collection);
+        store.Save(collection);
+    }
 
-        File.WriteAllText(
-            profilesPath,
-            JsonSerializer.Serialize(collection, JsonOptions));
+    private static void Normalize(ProfileCollection collection)
+    {
+        collection.Profiles ??= [];
+        foreach (AddonProfile profile in collection.Profiles)
+        {
+            profile.Addons ??= [];
+            profile.AddonFolderNames ??= [];
+        }
     }
 }

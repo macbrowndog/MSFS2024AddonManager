@@ -6,6 +6,18 @@ namespace MSFS2024AddonManager.Services;
 
 public sealed class ScanDiagnosticsService
 {
+    private readonly Func<string> recentLogProvider;
+
+    public ScanDiagnosticsService()
+        : this(AppLog.ReadRecentEntries)
+    {
+    }
+
+    internal ScanDiagnosticsService(Func<string> recentLogProvider)
+    {
+        this.recentLogProvider = recentLogProvider;
+    }
+
     public Task<DiagnosticReport> RunAsync(
         AppSettings settings,
         CancellationToken cancellationToken = default)
@@ -15,6 +27,9 @@ public sealed class ScanDiagnosticsService
 
     public string FormatReport(DiagnosticReport report)
     {
+        ArgumentNullException.ThrowIfNull(report);
+
+        var redactor = new PathRedactor(report.Items.Select(item => item.Path));
         var output = new StringBuilder();
         output.AppendLine("MSFS 2024 Addons Manager - Scan Diagnostics");
         output.AppendLine($"Created: {report.CreatedAt:yyyy-MM-dd HH:mm:ss zzz}");
@@ -26,15 +41,31 @@ public sealed class ScanDiagnosticsService
         output.AppendLine($"Valid manifests: {report.ValidManifests}");
         output.AppendLine($"Invalid manifests: {report.InvalidManifests}");
         output.AppendLine($"Community links: {report.CommunityLinks}");
+        output.AppendLine("Privacy: absolute filesystem paths are redacted from this export.");
         output.AppendLine();
 
         foreach (DiagnosticItem item in report.Items)
         {
             output.Append('[').Append(item.Severity.ToString().ToUpperInvariant()).Append("] ");
-            output.Append(item.Check).Append(": ").AppendLine(item.Result);
+            output.Append(redactor.Redact(item.Check))
+                .Append(": ")
+                .AppendLine(redactor.Redact(item.Result));
             if (!string.IsNullOrWhiteSpace(item.Path))
             {
-                output.Append("  Path: ").AppendLine(item.Path);
+                output.Append("  Path: ").AppendLine(redactor.Redact(item.Path));
+            }
+        }
+
+        string recentLog = recentLogProvider();
+        if (!string.IsNullOrWhiteSpace(recentLog))
+        {
+            output.AppendLine();
+            output.AppendLine("Recent application log (paths redacted)");
+            output.AppendLine("---------------------------------------");
+            output.Append(redactor.Redact(recentLog));
+            if (!recentLog.EndsWith('\n'))
+            {
+                output.AppendLine();
             }
         }
 

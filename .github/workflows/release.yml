@@ -1,0 +1,220 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish, for example v1.1.0
+        required: true
+        type: string
+      mark_latest:
+        description: Mark a manually backfilled release as Latest
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      AUTOMATION_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.repository.default_branch || github.ref_name }}
+      SIGNING_CERTIFICATE_BASE64: ${{ secrets.AUTHENTICODE_CERTIFICATE_BASE64 }}
+      SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.AUTHENTICODE_CERTIFICATE_PASSWORD }}
+
+    steps:
+      - name: Check out release automation
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.AUTOMATION_REF }}
+          path: automation
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          path: source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          dotnet-quality: ga
+
+      - name: Validate release version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v(?<version>\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$') {
+            throw "Release tag '$env:RELEASE_TAG' must use the form v1.2.3."
+          }
+
+          $sourceRoot = Join-Path $env:GITHUB_WORKSPACE 'source'
+          $projectPath = Join-Path $sourceRoot 'MSFS2024AddonManager/MSFS2024AddonManager.csproj'
+          [xml]$project = Get-Content $projectPath
+          $projectVersion = [string]$project.Project.PropertyGroup.Version
+          if ($projectVersion -ne $Matches.version) {
+            throw "Tag version $($Matches.version) does not match project version $projectVersion."
+          }
+
+          $solutionCandidates = @(
+            (Join-Path $sourceRoot 'MSFS2024AddonManager.slnx'),
+            (Join-Path $sourceRoot 'MSFS2024AddonManager/MSFS2024AddonManager.slnx')
+          )
+          $solutionPath = $solutionCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($solutionPath)) {
+            throw "No supported solution file exists at tag $env:RELEASE_TAG."
+          }
+
+          $releaseNotesPath = Join-Path $sourceRoot "Installer/RELEASE-NOTES-$($Matches.version).txt"
+          if (-not (Test-Path -LiteralPath $releaseNotesPath -PathType Leaf)) {
+            throw "Release notes are required: $releaseNotesPath"
+          }
+
+          "version=$($Matches.version)" >> $env:GITHUB_OUTPUT
+          "project=$projectPath" >> $env:GITHUB_OUTPUT
+          "solution=$solutionPath" >> $env:GITHUB_OUTPUT
+
+      - name: Restore dependencies
+        shell: pwsh
+        run: |
+          dotnet restore '${{ steps.version.outputs.solution }}'
+          dotnet restore '${{ steps.version.outputs.project }}' --runtime win-x64
+
+      - name: Build
+        run: dotnet build '${{ steps.version.outputs.solution }}' --configuration Release --no-restore
+
+      - name: Test
+        shell: pwsh
+        run: |
+          $testProject = Join-Path $env:GITHUB_WORKSPACE 'source/MSFS2024AddonManager.Tests/MSFS2024AddonManager.Tests.csproj'
+          if (Test-Path -LiteralPath $testProject) {
+            dotnet test $testProject --configuration Release --no-build
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Release tests failed.'
+            }
+          }
+          else {
+            ':warning: This historical tag predates the automated test project.' >> $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Publish and package distributions
+        shell: pwsh
+        run: |
+          $parameters = @{
+            Version = '${{ steps.version.outputs.version }}'
+            OutputDirectory = (Join-Path $env:RUNNER_TEMP 'release-artifacts')
+            RepositoryRoot = (Join-Path $env:GITHUB_WORKSPACE 'source')
+            LegalNoticesRoot = (Join-Path $env:GITHUB_WORKSPACE 'automation')
+            FrameworkLauncherScript = (Join-Path $env:GITHUB_WORKSPACE 'automation/Installer/Install-MSFS2024AddonManager.ps1')
+          }
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'authenticode-signing.pfx'
+          try {
+            if (-not [string]::IsNullOrWhiteSpace($env:SIGNING_CERTIFICATE_BASE64)) {
+              if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERTIFICATE_PASSWORD)) {
+                throw 'AUTHENTICODE_CERTIFICATE_PASSWORD is required when a signing certificate is configured.'
+              }
+
+              $certificateBytes = [Convert]::FromBase64String($env:SIGNING_CERTIFICATE_BASE64)
+              [IO.File]::WriteAllBytes($certificatePath, $certificateBytes)
+              $parameters.CertificatePath = $certificatePath
+              $parameters.CertificatePassword = $env:SIGNING_CERTIFICATE_PASSWORD
+            }
+
+            $packagingScript = Join-Path `
+              $env:GITHUB_WORKSPACE `
+              'automation/.github/scripts/New-ReleaseArtifacts.ps1'
+            & $packagingScript @parameters
+          }
+          finally {
+            Remove-Item -LiteralPath $certificatePath -Force -ErrorAction SilentlyContinue
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERTIFICATE_BASE64)) {
+            '### Signing' >> $env:GITHUB_STEP_SUMMARY
+            ':warning: Artifacts are unsigned because Authenticode secrets are not configured.' >> $env:GITHUB_STEP_SUMMARY
+          }
+          else {
+            '### Signing' >> $env:GITHUB_STEP_SUMMARY
+            ':white_check_mark: Both Windows executables were Authenticode-signed and verified.' >> $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MSFS2024AddonManager-${{ steps.version.outputs.version }}
+          path: |
+            ${{ runner.temp }}/release-artifacts/release/*.zip
+            ${{ runner.temp }}/release-artifacts/release/SHA256SUMS.txt
+            ${{ runner.temp }}/release-artifacts/release/RELEASE-NOTES-*.txt
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $releasePath = Join-Path $env:RUNNER_TEMP 'release-artifacts/release'
+          $assets = @(Get-ChildItem -LiteralPath $releasePath -File | Select-Object -ExpandProperty FullName)
+          $releaseNotes = Join-Path $releasePath 'RELEASE-NOTES-${{ steps.version.outputs.version }}.txt'
+          $title = 'MSFS 2024 Addons Manager ${{ steps.version.outputs.version }}'
+          $repository = $env:GITHUB_REPOSITORY
+          gh release view $env:RELEASE_TAG --repo $repository 2>$null | Out-Null
+          $releaseExists = $LASTEXITCODE -eq 0
+
+          if ($releaseExists) {
+            gh release upload $env:RELEASE_TAG $assets --clobber --repo $repository
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Could not update the existing release assets.'
+            }
+
+            $arguments = @(
+              'release', 'edit', $env:RELEASE_TAG,
+              '--verify-tag',
+              '--title', $title,
+              '--notes-file', $releaseNotes,
+              '--repo', $repository
+            )
+          }
+          else {
+            $arguments = @(
+              'release', 'create', $env:RELEASE_TAG,
+              '--verify-tag',
+              '--title', $title,
+              '--notes-file', $releaseNotes,
+              '--repo', $repository
+            )
+
+            if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+              if ('${{ inputs.mark_latest }}' -eq 'true') {
+                $arguments += '--latest'
+              }
+              else {
+                $arguments += '--latest=false'
+              }
+            }
+
+            $arguments += $assets
+          }
+
+          if ('${{ steps.version.outputs.version }}'.Contains('-')) {
+            $arguments += '--prerelease'
+          }
+
+          gh @arguments

@@ -802,10 +802,8 @@ public sealed class AddonsView : KryptonPanel
             return;
         }
 
-        bool isAssigned = activeProfile.AddonFolderNames.Contains(
-            addon.FolderName,
-            StringComparer.OrdinalIgnoreCase);
-        activeProfileLabel.Text = $"ACTIVE PROFILE: {activeProfile.Name}";
+        bool isAssigned = ProfileAssignmentService.IsAssigned(activeProfile, addon);
+        activeProfileLabel.Text = $"EDITING PROFILE: {activeProfile.Name}";
         profileAssignmentButton.Enabled = true;
         profileAssignmentButton.Text = isAssigned
             ? "Remove from profile"
@@ -829,19 +827,7 @@ public sealed class AddonsView : KryptonPanel
             return;
         }
 
-        int existingIndex = activeProfile.AddonFolderNames.FindIndex(
-            folderName => folderName.Equals(
-                selectedAddon.FolderName,
-                StringComparison.OrdinalIgnoreCase));
-
-        if (existingIndex >= 0)
-        {
-            activeProfile.AddonFolderNames.RemoveAt(existingIndex);
-        }
-        else
-        {
-            activeProfile.AddonFolderNames.Add(selectedAddon.FolderName);
-        }
+        ProfileAssignmentService.Toggle(activeProfile, selectedAddon);
 
         profileService.Save(profiles);
         RefreshProfileAssignment(selectedAddon);
@@ -891,11 +877,15 @@ public sealed class AddonsView : KryptonPanel
 
         if (result.Success)
         {
-            string folderName = selectedAddon.FolderName;
+            string packageIdentity = AddonIdentity.GetPackageIdentity(selectedAddon);
+            string canonicalPath = AddonIdentity.GetCanonicalPath(selectedAddon);
             await LoadAddonsAsync();
             Addon? refreshedAddon = addons.FirstOrDefault(addon =>
-                addon.FolderName.Equals(
-                    folderName,
+                AddonIdentity.GetPackageIdentity(addon).Equals(
+                    packageIdentity,
+                    StringComparison.OrdinalIgnoreCase) &&
+                AddonIdentity.GetCanonicalPath(addon).Equals(
+                    canonicalPath,
                     StringComparison.OrdinalIgnoreCase));
             if (refreshedAddon is not null)
             {
