@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Check out release automation
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.AUTOMATION_REF }}
           path: automation
@@ -43,7 +43,7 @@ jobs:
           persist-credentials: false
 
       - name: Check out release source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           path: source
