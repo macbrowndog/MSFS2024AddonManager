@@ -1,5 +1,8 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Views;
+using MSFS2024AddonManager.UI.Controls;
+using MSFS2024AddonManager.UI.Themes;
+using ThemeService = MSFS2024AddonManager.UI.Themes.ThemeService;
 using System.Security.Principal;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
@@ -31,35 +34,77 @@ public static class LayoutBuilder
 
     private static Control BuildHeader()
     {
-        var header = new Panel
+        var header = new AvionicsPanel
         {
             Dock = DockStyle.Top,
             Height = UIConstants.HeaderHeight,
             BackColor = AppColors.Surface,
-            Padding = new Padding(24, 0, 24, 0)
+            Padding = new Padding(20, 0, 20, 0)
         };
 
         var title = new Label
         {
-            Text = UIConstants.ApplicationTitle,
+            Text = "FLIGHT DECK / MSFS 2024 ADDONS MANAGER",
             Font = AppFonts.Header,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
-            Location = new Point(24, 18)
+            Location = new Point(20, 14)
+        };
+
+        var subtitle = new Label
+        {
+            Text = "ADDON CONTROL • PROFILE MANAGEMENT • SAFE LINK OPERATIONS",
+            Font = AppFonts.Small,
+            ForeColor = AppColors.SecondaryText,
+            AutoSize = true,
+            Location = new Point(22, 52)
         };
 
         var version = new Label
         {
-            Text = $"Version {UIConstants.ApplicationVersion}  •  {UIConstants.Copyright}",
+            Text = $"{UIConstants.Copyright.ToUpperInvariant()} • VERSION {UIConstants.ApplicationVersion}",
             Font = AppFonts.Small,
-            ForeColor = AppColors.SecondaryText,
+            ForeColor = AppColors.Cyan,
             AutoSize = true,
             Anchor = AnchorStyles.Top | AnchorStyles.Right
         };
 
-        header.Controls.AddRange([title, version]);
-        header.Resize += (_, _) =>
-            version.Location = new Point(header.ClientSize.Width - version.Width - 24, 27);
+        var readyFrame = new AvionicsPanel
+        {
+            Size = new Size(154, 38),
+            BackColor = AppColors.Navigation,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right
+        };
+        readyFrame.Controls.Add(new Label
+        {
+            Text = "●",
+            Font = AppFonts.Instrument,
+            ForeColor = AppColors.Success,
+            AutoSize = true,
+            Location = new Point(12, 11)
+        });
+        readyFrame.Controls.Add(new Label
+        {
+            Text = "SYSTEM READY",
+            Font = AppFonts.Instrument,
+            ForeColor = AppColors.Accent,
+            AutoSize = true,
+            Location = new Point(32, 11)
+        });
+
+        header.Controls.AddRange([title, subtitle, version, readyFrame]);
+        void PositionHeaderReadouts()
+        {
+            readyFrame.Location = new Point(
+                header.ClientSize.Width - readyFrame.Width - 20,
+                11);
+            version.Location = new Point(
+                header.ClientSize.Width - version.Width - 20,
+                57);
+        }
+
+        header.Resize += (_, _) => PositionHeaderReadouts();
+        PositionHeaderReadouts();
         return header;
     }
 
@@ -72,13 +117,23 @@ public static class LayoutBuilder
             BackColor = AppColors.Navigation,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
-            Padding = new Padding(12, 22, 12, 12)
+            Padding = new Padding(12, 16, 12, 12)
         };
+
+        navigation.Controls.Add(new Label
+        {
+            Text = "NAV / ADDON CONTROL",
+            Font = AppFonts.Instrument,
+            ForeColor = AppColors.SecondaryText,
+            Size = new Size(UIConstants.NavigationWidth - 24, 30),
+            Margin = new Padding(4, 0, 0, 9),
+            TextAlign = ContentAlignment.MiddleLeft
+        });
 
         var buttons = new List<Button>();
         Button dashboardButton = AddNavigationButton(
             navigation,
-            "Dashboard",
+            "DASHBOARD",
             button =>
             {
                 SelectNavigationButton(buttons, button);
@@ -87,7 +142,7 @@ public static class LayoutBuilder
         buttons.Add(dashboardButton);
         buttons.Add(AddNavigationButton(
             navigation,
-            "Addons",
+            "ADDONS",
             button =>
             {
                 SelectNavigationButton(buttons, button);
@@ -95,7 +150,7 @@ public static class LayoutBuilder
             }));
         buttons.Add(AddNavigationButton(
             navigation,
-            "Profiles",
+            "PROFILES",
             button =>
             {
                 SelectNavigationButton(buttons, button);
@@ -103,7 +158,7 @@ public static class LayoutBuilder
             }));
         buttons.Add(AddNavigationButton(
             navigation,
-            "Scan",
+            "SCAN / DIAGNOSTICS",
             button =>
             {
                 SelectNavigationButton(buttons, button);
@@ -111,7 +166,7 @@ public static class LayoutBuilder
             }));
         buttons.Add(AddNavigationButton(
             navigation,
-            "Settings",
+            "SETTINGS",
             button =>
             {
                 SelectNavigationButton(buttons, button);
@@ -137,7 +192,7 @@ public static class LayoutBuilder
 
     private static Control BuildStatusBar()
     {
-        var status = new Panel
+        var status = new AvionicsPanel
         {
             Dock = DockStyle.Bottom,
             Height = UIConstants.StatusHeight,
@@ -147,21 +202,21 @@ public static class LayoutBuilder
 
         var readyLabel = new Label
         {
-            Text = "Ready",
+            Text = "PIPELINE STANDBY",
             Font = AppFonts.Status,
             ForeColor = AppColors.SecondaryText,
             AutoSize = true,
-            Location = new Point(16, 9)
+            Location = new Point(16, 13)
         };
 
         bool isAdministrator = IsAdministrator();
         var privilegeLabel = new Label
         {
             Text = isAdministrator
-                ? "Administrator mode — symbolic links enabled"
-                : "Standard mode — run as administrator to enable or disable addons",
-            Font = AppFonts.Status,
-            ForeColor = isAdministrator ? AppColors.Success : AppColors.Warning,
+                ? "● ADMINISTRATOR / LINK CONTROL READY"
+                : "● STANDARD USER / ELEVATION REQUIRED FOR LINK CHANGES",
+            Font = AppFonts.Instrument,
+            ForeColor = isAdministrator ? AppColors.Success : AppColors.Accent,
             AutoSize = true,
             Anchor = AnchorStyles.Top | AnchorStyles.Right
         };
@@ -170,7 +225,7 @@ public static class LayoutBuilder
         void PositionPrivilegeLabel() =>
             privilegeLabel.Location = new Point(
                 status.ClientSize.Width - privilegeLabel.Width - 16,
-                9);
+                12);
         status.Resize += (_, _) => PositionPrivilegeLabel();
         PositionPrivilegeLabel();
 
@@ -199,22 +254,17 @@ public static class LayoutBuilder
         var button = new Button
         {
             Text = text,
-            Size = new Size(UIConstants.NavigationWidth - 24, 46),
-            Margin = new Padding(0, 0, 0, 8),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = AppColors.Navigation,
-            ForeColor = AppColors.Text,
-            Font = AppFonts.Button,
-            Cursor = Cursors.Hand,
-            TabStop = false,
+            Size = new Size(UIConstants.NavigationWidth - 24, 42),
+            Margin = new Padding(0, 0, 0, 7),
             TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(18, 0, 0, 0),
-            UseVisualStyleBackColor = false
+            Padding = new Padding(14, 0, 0, 0)
         };
 
-        button.FlatAppearance.BorderSize = 0;
-        button.FlatAppearance.MouseOverBackColor = AppColors.SurfaceLight;
-        button.FlatAppearance.MouseDownBackColor = AppColors.Accent;
+        ThemeService.StyleStandardButton(button);
+        button.BackColor = AppColors.Navigation;
+        button.ForeColor = AppColors.Text;
+        button.FlatAppearance.BorderColor = AppColors.Border;
+        button.FlatAppearance.MouseOverBackColor = AppColors.ControlHover;
         button.Click += (_, _) => onClick(button);
         navigation.Controls.Add(button);
         return button;
@@ -227,8 +277,11 @@ public static class LayoutBuilder
         foreach (Button button in buttons)
         {
             bool isSelected = ReferenceEquals(button, selectedButton);
-            button.BackColor = isSelected ? AppColors.Accent : AppColors.Navigation;
-            button.ForeColor = Color.White;
+            button.BackColor = isSelected ? AppColors.Selection : AppColors.Navigation;
+            button.ForeColor = isSelected ? AppColors.Accent : AppColors.Text;
+            button.FlatAppearance.BorderColor = isSelected
+                ? AppColors.Accent
+                : AppColors.Border;
         }
     }
 

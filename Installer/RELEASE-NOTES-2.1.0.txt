@@ -1,0 +1,41 @@
+MSFS 2024 ADDONS MANAGER
+Version 2.1.0
+Andrew Brown © 2026
+
+VERSION 2.1.0 HIGHLIGHTS
+------------------------
+- Introduces a redesigned flight-deck interface aligned with Flight Sim VR
+  Auto Optimizer's visual language.
+- Adds a matte near-black avionics palette with amber controls, cyan technical
+  readouts, green ready states, and red destructive states.
+- Uses Consolas for technical headings, controls, status displays, and package
+  readouts, with Segoe UI retained for readable descriptive text.
+- Redesigns the application header, navigation, status annunciators,
+  dashboard, addon library, profiles, diagnostics, settings, and transactional
+  profile preview.
+- Adds reusable bordered avionics panels and centralized styling for buttons,
+  text fields, selectors, lists, trees, and check boxes.
+- Improves visual hierarchy with compact typography, squared one-pixel bezels,
+  uppercase instrument labels, and consistent active and hover states.
+
+FUNCTIONALITY AND SAFETY
+------------------------
+- All profile, link-safety, simulator-process detection, atomic persistence,
+  diagnostic logging, and recovery behavior introduced in version 2.0.0 is
+  retained unchanged.
+- The complete automated suite passes, including filesystem collision, broken
+  and wrong-target link, duplicate-name, UNC, removable-drive, and unavailable
+  library scenarios.
+
+DISTRIBUTION
+------------
+- Includes self-contained and framework-dependent Windows x64 downloads.
+- Includes SHA-256 checksums for release packages.
+- Release executables are Authenticode-signed when repository signing secrets
+  are configured; each archive states its signing status.
+
+IMPORTANT
+---------
+Close Microsoft Flight Simulator before changing enabled addons. Keep source
+libraries available while their addons are enabled, especially removable and
+network storage. Review the profile preview before applying large changes.

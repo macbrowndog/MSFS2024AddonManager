@@ -1,6 +1,9 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Models;
 using MSFS2024AddonManager.Services;
+using MSFS2024AddonManager.UI.Controls;
+using MSFS2024AddonManager.UI.Themes;
+using ThemeService = MSFS2024AddonManager.UI.Themes.ThemeService;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
@@ -18,7 +21,7 @@ public sealed class AddonsView : KryptonPanel
     private readonly Label resultLabel = new();
     private readonly Label emptyLabel = new();
     private readonly KryptonButton refreshButton = new();
-    private readonly Panel detailsPanel = new();
+    private readonly AvionicsPanel detailsPanel = new();
     private readonly Label detailName = new();
     private readonly Label detailCategory = new();
     private readonly Label detailStatus = new();
@@ -87,9 +90,9 @@ public sealed class AddonsView : KryptonPanel
         };
         panel.Controls.Add(new Label
         {
-            Text = "Addons",
+            Text = "ADDONS / PACKAGE CONTROL",
             Font = AppFonts.Header,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
             Location = new Point(0, 0)
         });
@@ -106,7 +109,7 @@ public sealed class AddonsView : KryptonPanel
 
     private Control CreateCommandBar()
     {
-        var panel = new Panel
+        var panel = new AvionicsPanel
         {
             Dock = DockStyle.Fill,
             BackColor = AppColors.Surface,
@@ -117,15 +120,14 @@ public sealed class AddonsView : KryptonPanel
         searchBox.CueHint.CueHintText = "Search addons...";
         searchBox.Location = new Point(14, 13);
         searchBox.Size = new Size(330, 34);
+        ThemeService.StyleTextBox(searchBox);
         searchBox.TextChanged += (_, _) => ApplyFilters();
 
         categoryBox.Items.AddRange(
             ["All categories", "Aircraft", "Airports", "Scenery", "Liveries", "Utilities", "Other"]);
         categoryBox.SelectedIndex = 0;
         categoryBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        categoryBox.Font = AppFonts.Normal;
-        categoryBox.BackColor = AppColors.SurfaceLight;
-        categoryBox.ForeColor = AppColors.Text;
+        ThemeService.StyleComboBox(categoryBox);
         categoryBox.Location = new Point(358, 14);
         categoryBox.Size = new Size(160, 32);
         categoryBox.SelectedIndexChanged += (_, _) => ApplyFilters();
@@ -139,20 +141,15 @@ public sealed class AddonsView : KryptonPanel
         ]);
         locationBox.SelectedIndex = 0;
         locationBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        locationBox.Font = AppFonts.Normal;
-        locationBox.BackColor = AppColors.SurfaceLight;
-        locationBox.ForeColor = AppColors.Text;
+        ThemeService.StyleComboBox(locationBox);
         locationBox.Location = new Point(532, 14);
         locationBox.Size = new Size(170, 32);
         locationBox.SelectedIndexChanged += (_, _) => ApplyFilters();
 
-        refreshButton.Text = "Refresh";
+        refreshButton.Text = "REFRESH";
         refreshButton.Size = new Size(100, 34);
         refreshButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        refreshButton.StateCommon.Back.Color1 = AppColors.Accent;
-        refreshButton.StateCommon.Back.Color2 = AppColors.Accent;
-        refreshButton.StateCommon.Content.ShortText.Color1 = Color.White;
-        refreshButton.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        ThemeService.StylePrimaryButton(refreshButton);
         refreshButton.Click += async (_, _) => await LoadAddonsAsync();
 
         resultLabel.Font = AppFonts.Small;
@@ -186,7 +183,7 @@ public sealed class AddonsView : KryptonPanel
             FixedPanel = FixedPanel.None,
             IsSplitterFixed = false,
             SplitterWidth = 7,
-            BackColor = AppColors.SurfaceLight
+            BackColor = AppColors.Border
         };
         ConfigureSplitterWhenReady(splitView);
         var resultsHost = new Panel
@@ -266,7 +263,7 @@ public sealed class AddonsView : KryptonPanel
             Dock = DockStyle.Top,
             Height = 32,
             Font = AppFonts.Small,
-            ForeColor = AppColors.SecondaryText,
+            ForeColor = AppColors.Accent,
             TextAlign = ContentAlignment.MiddleLeft
         };
 
@@ -278,10 +275,7 @@ public sealed class AddonsView : KryptonPanel
     private void ConfigureLibraryTree()
     {
         libraryTree.Dock = DockStyle.Fill;
-        libraryTree.BackColor = AppColors.Navigation;
-        libraryTree.ForeColor = AppColors.Text;
-        libraryTree.Font = AppFonts.Normal;
-        libraryTree.BorderStyle = BorderStyle.None;
+        ThemeService.StyleTreeView(libraryTree);
         libraryTree.HideSelection = false;
         libraryTree.FullRowSelect = true;
         libraryTree.ShowLines = true;
@@ -299,6 +293,7 @@ public sealed class AddonsView : KryptonPanel
         detailsPanel.Dock = DockStyle.Right;
         detailsPanel.Width = 350;
         detailsPanel.BackColor = AppColors.Surface;
+        detailsPanel.BorderColor = AppColors.Border;
         detailsPanel.Padding = new Padding(24);
         detailsPanel.AutoScroll = true;
         detailsPanel.Visible = false;
@@ -353,9 +348,7 @@ public sealed class AddonsView : KryptonPanel
         });
 
         linkTargetBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        linkTargetBox.Font = AppFonts.Normal;
-        linkTargetBox.BackColor = AppColors.SurfaceLight;
-        linkTargetBox.ForeColor = AppColors.Text;
+        ThemeService.StyleComboBox(linkTargetBox);
         linkTargetBox.Location = new Point(24, 682);
         linkTargetBox.Size = new Size(240, 32);
         linkTargetBox.SelectedIndexChanged += (_, _) =>
@@ -367,16 +360,17 @@ public sealed class AddonsView : KryptonPanel
         activeProfileLabel.Size = new Size(302, 48);
         activeProfileLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
-        profileAssignmentButton.Text = "Add to active profile";
+        profileAssignmentButton.Text = "ADD TO ACTIVE PROFILE";
         profileAssignmentButton.Location = new Point(24, 784);
         profileAssignmentButton.Size = new Size(190, 38);
         StyleDarkButton(profileAssignmentButton);
         profileAssignmentButton.Click += (_, _) => ToggleActiveProfileAssignment();
 
-        linkActionButton.Text = "Enable addon";
+        linkActionButton.Text = "ENABLE ADDON";
         linkActionButton.Location = new Point(24, 834);
         linkActionButton.Size = new Size(190, 38);
         StyleDarkButton(linkActionButton);
+        ThemeService.StyleStandardButton(linkActionButton, primary: true);
         linkActionButton.Click += ToggleAddonLink;
 
         linkFeedbackLabel.Text =
@@ -417,7 +411,7 @@ public sealed class AddonsView : KryptonPanel
         ConfigureDetailLabel(
             valueLabel,
             AppFonts.Normal,
-            AppColors.Text,
+            AppColors.Cyan,
             24,
             top + 22,
             302,
@@ -445,8 +439,8 @@ public sealed class AddonsView : KryptonPanel
     private async Task LoadAddonsAsync()
     {
         refreshButton.Enabled = false;
-        refreshButton.Text = "Scanning...";
-        resultLabel.Text = "Reading libraries";
+        refreshButton.Text = "SCANNING...";
+        resultLabel.Text = "READING LIBRARIES";
 
         try
         {
@@ -457,7 +451,7 @@ public sealed class AddonsView : KryptonPanel
         finally
         {
             refreshButton.Enabled = true;
-            refreshButton.Text = "Refresh";
+            refreshButton.Text = "REFRESH";
         }
     }
 
@@ -691,7 +685,7 @@ public sealed class AddonsView : KryptonPanel
         int textLeft = hasThumbnail ? 116 : 18;
         int textWidth = hasThumbnail ? 176 : 274;
 
-        var card = new Panel
+        var card = new AvionicsPanel
         {
             Size = new Size(310, 158),
             BackColor = AppColors.Surface,
@@ -798,7 +792,7 @@ public sealed class AddonsView : KryptonPanel
         {
             activeProfileLabel.Text = "No active profile.\r\nCreate one on the Profiles page.";
             profileAssignmentButton.Enabled = false;
-            profileAssignmentButton.Text = "No active profile";
+            profileAssignmentButton.Text = "NO ACTIVE PROFILE";
             return;
         }
 
@@ -806,8 +800,8 @@ public sealed class AddonsView : KryptonPanel
         activeProfileLabel.Text = $"EDITING PROFILE: {activeProfile.Name}";
         profileAssignmentButton.Enabled = true;
         profileAssignmentButton.Text = isAssigned
-            ? "Remove from profile"
-            : "Add to active profile";
+            ? "REMOVE FROM PROFILE"
+            : "ADD TO ACTIVE PROFILE";
     }
 
     private void ToggleActiveProfileAssignment()
@@ -900,17 +894,7 @@ public sealed class AddonsView : KryptonPanel
 
     private static void StyleDarkButton(Button button)
     {
-        button.FlatStyle = FlatStyle.Flat;
-        button.BackColor = AppColors.AccentDark;
-        button.ForeColor = Color.White;
-        button.Font = AppFonts.Button;
-        button.Cursor = Cursors.Hand;
-        button.TabStop = false;
-        button.UseVisualStyleBackColor = false;
-        button.FlatAppearance.BorderColor = AppColors.Accent;
-        button.FlatAppearance.BorderSize = 1;
-        button.FlatAppearance.MouseOverBackColor = AppColors.Accent;
-        button.FlatAppearance.MouseDownBackColor = AppColors.AccentDark;
+        ThemeService.StyleStandardButton(button);
     }
 
     private void ConfigureLinkTargets(Addon addon)
@@ -970,7 +954,7 @@ public sealed class AddonsView : KryptonPanel
             linkTargetBox.SelectedItem is not CommunityTarget target)
         {
             linkActionButton.Enabled = false;
-            linkActionButton.Text = "No link destination";
+            linkActionButton.Text = "NO LINK DESTINATION";
             linkFeedbackLabel.ForeColor = AppColors.Warning;
             linkFeedbackLabel.Text =
                 "Configure a Community or Community2024 folder in Settings first.";
@@ -980,7 +964,7 @@ public sealed class AddonsView : KryptonPanel
         if (!selectedAddon.IsManagedLibraryAddon)
         {
             linkActionButton.Enabled = false;
-            linkActionButton.Text = "Directly installed";
+            linkActionButton.Text = "DIRECTLY INSTALLED";
             linkFeedbackLabel.ForeColor = AppColors.Warning;
             linkFeedbackLabel.Text =
                 "This package exists only inside a Community folder. Move it to an addon library before managing it with symbolic links.";
@@ -989,10 +973,19 @@ public sealed class AddonsView : KryptonPanel
 
         bool isEnabled = IsEnabledAtTarget(selectedAddon, target.Path);
         linkActionButton.Enabled = true;
-        linkActionButton.Text = isEnabled ? "Disable from this folder" : "Enable in this folder";
-        linkActionButton.BackColor = isEnabled
-            ? Color.FromArgb(118, 48, 54)
-            : AppColors.AccentDark;
+        linkActionButton.Text = isEnabled
+            ? "DISABLE FROM THIS FOLDER"
+            : "ENABLE IN THIS FOLDER";
+        if (isEnabled)
+        {
+            linkActionButton.BackColor = AppColors.ErrorDark;
+            linkActionButton.ForeColor = AppColors.Error;
+            linkActionButton.FlatAppearance.BorderColor = AppColors.Error;
+        }
+        else
+        {
+            ThemeService.StyleStandardButton(linkActionButton, primary: true);
+        }
         linkFeedbackLabel.ForeColor = AppColors.SecondaryText;
         linkFeedbackLabel.Text = isEnabled
             ? $"Disable removes only the symbolic link from {target.Name}. The source addon folder is preserved."

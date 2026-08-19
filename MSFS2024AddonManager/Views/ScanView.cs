@@ -1,6 +1,9 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Models;
 using MSFS2024AddonManager.Services;
+using MSFS2024AddonManager.UI.Controls;
+using MSFS2024AddonManager.UI.Themes;
+using ThemeService = MSFS2024AddonManager.UI.Themes.ThemeService;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
@@ -53,9 +56,9 @@ public sealed class ScanView : KryptonPanel
         };
         panel.Controls.Add(new Label
         {
-            Text = "Scan & Diagnostics",
+            Text = "SCAN / DIAGNOSTICS",
             Font = AppFonts.Header,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
             Location = new Point(0, 0)
         });
@@ -72,27 +75,24 @@ public sealed class ScanView : KryptonPanel
 
     private Control CreateCommandBar()
     {
-        var panel = new Panel
+        var panel = new AvionicsPanel
         {
             Dock = DockStyle.Fill,
             BackColor = AppColors.Surface,
             Padding = new Padding(14)
         };
 
-        scanButton.Text = "Run diagnostics";
+        scanButton.Text = "RUN DIAGNOSTICS";
         scanButton.Location = new Point(14, 16);
         scanButton.Size = new Size(150, 38);
         StylePrimaryButton(scanButton);
         scanButton.Click += async (_, _) => await RunDiagnosticsAsync();
 
-        exportButton.Text = "Export report";
+        exportButton.Text = "EXPORT REPORT";
         exportButton.Location = new Point(176, 16);
         exportButton.Size = new Size(130, 38);
         exportButton.Enabled = false;
-        exportButton.StateCommon.Back.Color1 = AppColors.SurfaceLight;
-        exportButton.StateCommon.Back.Color2 = AppColors.SurfaceLight;
-        exportButton.StateCommon.Content.ShortText.Color1 = AppColors.Text;
-        exportButton.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        ThemeService.StyleSecondaryButton(exportButton);
         exportButton.Click += ExportReport;
 
         summaryLabel.Font = AppFonts.Small;
@@ -123,10 +123,7 @@ public sealed class ScanView : KryptonPanel
         resultsList.FullRowSelect = true;
         resultsList.GridLines = false;
         resultsList.HideSelection = false;
-        resultsList.BackColor = AppColors.Surface;
-        resultsList.ForeColor = AppColors.Text;
-        resultsList.Font = AppFonts.Normal;
-        resultsList.BorderStyle = BorderStyle.None;
+        ThemeService.StyleListView(resultsList);
         resultsList.Columns.Add("Status", 100);
         resultsList.Columns.Add("Check", 170);
         resultsList.Columns.Add("Result", 450);
@@ -152,7 +149,7 @@ public sealed class ScanView : KryptonPanel
         finally
         {
             scanButton.Enabled = true;
-            scanButton.Text = "Run diagnostics";
+            scanButton.Text = "RUN DIAGNOSTICS";
         }
     }
 
@@ -163,7 +160,7 @@ public sealed class ScanView : KryptonPanel
             var row = new ListViewItem(item.Severity.ToString().ToUpperInvariant())
             {
                 ForeColor = GetSeverityColor(item.Severity),
-                BackColor = AppColors.Surface
+                BackColor = AppColors.Control
             };
             row.SubItems.Add(item.Check);
             row.SubItems.Add(item.Result);
@@ -207,10 +204,7 @@ public sealed class ScanView : KryptonPanel
 
     private static void StylePrimaryButton(KryptonButton button)
     {
-        button.StateCommon.Back.Color1 = AppColors.Accent;
-        button.StateCommon.Back.Color2 = AppColors.Accent;
-        button.StateCommon.Content.ShortText.Color1 = Color.White;
-        button.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        ThemeService.StylePrimaryButton(button);
     }
 
     private static Color GetSeverityColor(DiagnosticSeverity severity) => severity switch

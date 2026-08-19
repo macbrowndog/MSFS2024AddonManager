@@ -1,6 +1,9 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Models;
 using MSFS2024AddonManager.Services;
+using MSFS2024AddonManager.UI.Controls;
+using MSFS2024AddonManager.UI.Themes;
+using ThemeService = MSFS2024AddonManager.UI.Themes.ThemeService;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
@@ -60,9 +63,9 @@ public sealed class SettingsView : KryptonPanel
 
         panel.Controls.Add(new Label
         {
-            Text = "Settings",
+            Text = "SETTINGS / STORAGE CONFIGURATION",
             Font = AppFonts.Header,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
             Location = new Point(0, 0)
         });
@@ -87,6 +90,7 @@ public sealed class SettingsView : KryptonPanel
         communityFolderTextBox.Location = new Point(18, 52);
         communityFolderTextBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         communityFolderTextBox.Width = 650;
+        ThemeService.StyleTextBox(communityFolderTextBox);
 
         var browseButton = CreateButton("Browse...", BrowseCommunityFolder);
         browseButton.Location = new Point(684, 50);
@@ -103,6 +107,7 @@ public sealed class SettingsView : KryptonPanel
         community2024FolderTextBox.Anchor =
             AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         community2024FolderTextBox.Width = 650;
+        ThemeService.StyleTextBox(community2024FolderTextBox);
 
         var browse2024Button = CreateButton("Browse...", BrowseCommunity2024Folder);
         browse2024Button.Location = new Point(684, 130);
@@ -154,9 +159,9 @@ public sealed class SettingsView : KryptonPanel
         addonLibrariesList.Location = new Point(18, 72);
         addonLibrariesList.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         addonLibrariesList.Size = new Size(650, 186);
-        addonLibrariesList.BackColor = AppColors.Navigation;
-        addonLibrariesList.ForeColor = AppColors.Text;
-        addonLibrariesList.Font = AppFonts.Normal;
+        addonLibrariesList.BackColor = AppColors.Control;
+        addonLibrariesList.ForeColor = AppColors.Cyan;
+        addonLibrariesList.Font = AppFonts.Readout;
         addonLibrariesList.BorderStyle = BorderStyle.FixedSingle;
 
         var addButton = CreateButton("Add library", AddLibrary);
@@ -182,8 +187,7 @@ public sealed class SettingsView : KryptonPanel
         var panel = CreateSurfacePanel();
 
         autoDetectCheckBox.Text = "Automatically detect the MSFS Community folder";
-        autoDetectCheckBox.Font = AppFonts.Normal;
-        autoDetectCheckBox.ForeColor = AppColors.Text;
+        ThemeService.StyleCheckBox(autoDetectCheckBox);
         autoDetectCheckBox.AutoSize = true;
         autoDetectCheckBox.Location = new Point(18, 18);
         autoDetectCheckBox.CheckedChanged += (_, _) =>
@@ -195,8 +199,7 @@ public sealed class SettingsView : KryptonPanel
         };
 
         scanOnStartupCheckBox.Text = "Scan addon libraries when the application starts";
-        scanOnStartupCheckBox.Font = AppFonts.Normal;
-        scanOnStartupCheckBox.ForeColor = AppColors.Text;
+        ThemeService.StyleCheckBox(scanOnStartupCheckBox);
         scanOnStartupCheckBox.AutoSize = true;
         scanOnStartupCheckBox.Location = new Point(18, 50);
         scanOnStartupCheckBox.CheckedChanged += (_, _) =>
@@ -216,7 +219,7 @@ public sealed class SettingsView : KryptonPanel
         return panel;
     }
 
-    private static Panel CreateSurfacePanel() => new()
+    private static Panel CreateSurfacePanel() => new AvionicsPanel
     {
         Dock = DockStyle.Fill,
         Margin = new Padding(0, 0, 0, 14),
@@ -225,9 +228,9 @@ public sealed class SettingsView : KryptonPanel
 
     private static Label CreateSectionTitle(string text) => new()
     {
-        Text = text,
+        Text = text.ToUpperInvariant(),
         Font = AppFonts.Title,
-        ForeColor = AppColors.Text,
+        ForeColor = AppColors.Accent,
         AutoSize = true
     };
 
@@ -235,20 +238,10 @@ public sealed class SettingsView : KryptonPanel
     {
         var button = new Button
         {
-            Text = text,
-            Size = new Size(100, 34),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = AppColors.SurfaceLight,
-            ForeColor = AppColors.Text,
-            Font = AppFonts.Button,
-            Cursor = Cursors.Hand,
-            TabStop = false,
-            UseVisualStyleBackColor = false
+            Text = text.ToUpperInvariant(),
+            Size = new Size(100, 34)
         };
-        button.FlatAppearance.BorderColor = AppColors.Accent;
-        button.FlatAppearance.BorderSize = 1;
-        button.FlatAppearance.MouseOverBackColor = AppColors.AccentDark;
-        button.FlatAppearance.MouseDownBackColor = AppColors.Accent;
+        ThemeService.StyleStandardButton(button);
         button.Click += clickHandler;
         return button;
     }

@@ -1,5 +1,8 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Services;
+using MSFS2024AddonManager.UI.Controls;
+using MSFS2024AddonManager.UI.Themes;
+using ThemeService = MSFS2024AddonManager.UI.Themes.ThemeService;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
@@ -11,7 +14,7 @@ public sealed class ProfileApplyPreviewDialog : KryptonForm
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        Text = $"Apply profile - {plan.Profile.Name}";
+        Text = $"PROFILE APPLY / {plan.Profile.Name.ToUpperInvariant()}";
         StartPosition = FormStartPosition.CenterParent;
         ClientSize = new Size(780, 570);
         MinimumSize = new Size(680, 480);
@@ -46,35 +49,36 @@ public sealed class ProfileApplyPreviewDialog : KryptonForm
 
     private static Control CreateHeading(ProfileApplyPlan plan)
     {
-        var panel = new Panel
+        var panel = new AvionicsPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = AppColors.Background
+            BackColor = AppColors.Surface,
+            Padding = new Padding(14)
         };
         panel.Controls.Add(new Label
         {
-            Text = $"Apply {plan.Profile.Name}",
-            Font = AppFonts.Title,
-            ForeColor = AppColors.Text,
+            Text = $"PROFILE APPLY / {plan.Profile.Name.ToUpperInvariant()}",
+            Font = AppFonts.Header,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
-            Location = new Point(0, 0)
+            Location = new Point(14, 10)
         });
         panel.Controls.Add(new Label
         {
-            Text = $"{plan.EnableCount} to enable  •  {plan.DisableCount} to disable",
-            Font = AppFonts.Normal,
+            Text = $"{plan.EnableCount} TO ENABLE  •  {plan.DisableCount} TO DISABLE",
+            Font = AppFonts.Readout,
             ForeColor = AppColors.SecondaryText,
             AutoSize = true,
-            Location = new Point(1, 36)
+            Location = new Point(15, 43)
         });
         return panel;
     }
 
     private static Control CreateTargetLabel(ProfileApplyPlan plan) => new Label
     {
-        Text = $"Target: {plan.CommunityFolder}",
-        Font = AppFonts.Small,
-        ForeColor = AppColors.SecondaryText,
+        Text = $"TARGET / {plan.CommunityFolder}",
+        Font = AppFonts.Readout,
+        ForeColor = AppColors.Cyan,
         AutoEllipsis = true,
         Dock = DockStyle.Fill,
         TextAlign = ContentAlignment.MiddleLeft
@@ -92,6 +96,7 @@ public sealed class ProfileApplyPreviewDialog : KryptonForm
             ForeColor = AppColors.Text,
             BorderStyle = BorderStyle.FixedSingle
         };
+        ThemeService.StyleListView(list);
         list.Columns.Add("Action", 100);
         list.Columns.Add("Addon", 250);
         list.Columns.Add("Source library", 360);
@@ -145,22 +150,19 @@ public sealed class ProfileApplyPreviewDialog : KryptonForm
 
         var applyButton = new KryptonButton
         {
-            Text = "Apply profile",
+            Text = "APPLY PROFILE",
             DialogResult = DialogResult.OK,
             Size = new Size(130, 38)
         };
-        applyButton.StateCommon.Back.Color1 = AppColors.Accent;
-        applyButton.StateCommon.Back.Color2 = AppColors.Accent;
-        applyButton.StateCommon.Content.ShortText.Color1 = Color.White;
-        applyButton.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        ThemeService.StylePrimaryButton(applyButton);
 
         var cancelButton = new KryptonButton
         {
-            Text = "Cancel",
+            Text = "CANCEL",
             DialogResult = DialogResult.Cancel,
             Size = new Size(104, 38)
         };
-        cancelButton.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        ThemeService.StyleSecondaryButton(cancelButton);
 
         AcceptButton = applyButton;
         CancelButton = cancelButton;

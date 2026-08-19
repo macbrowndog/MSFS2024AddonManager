@@ -1,6 +1,9 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Models;
 using MSFS2024AddonManager.Services;
+using MSFS2024AddonManager.UI.Controls;
+using MSFS2024AddonManager.UI.Themes;
+using ThemeService = MSFS2024AddonManager.UI.Themes.ThemeService;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
@@ -77,9 +80,9 @@ public sealed class DashboardView : KryptonPanel
         };
         panel.Controls.Add(new Label
         {
-            Text = "Dashboard",
+            Text = "DASHBOARD / LIBRARY STATUS",
             Font = AppFonts.Header,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
             Location = new Point(0, 0)
         });
@@ -126,7 +129,7 @@ public sealed class DashboardView : KryptonPanel
             BackColor = AppColors.Background,
             Padding = new Padding(0, 0, 0, 14)
         };
-        var categoryLayout = new TableLayoutPanel
+        var categoryLayout = new AvionicsTableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = AppColors.Surface,
@@ -149,9 +152,9 @@ public sealed class DashboardView : KryptonPanel
         };
         var heading = new Label
         {
-            Text = "Enabled Categories",
+            Text = "ENABLED CATEGORIES / ACTIVE PACKAGES",
             Font = AppFonts.Title,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             Dock = DockStyle.Fill,
             Padding = new Padding(18, 10, 0, 0),
             BackColor = AppColors.Surface,
@@ -176,7 +179,7 @@ public sealed class DashboardView : KryptonPanel
 
     private static Control CreateCategoryTile(string category, Label value)
     {
-        var panel = new Panel
+        var panel = new AvionicsPanel
         {
             Dock = DockStyle.Fill,
             BackColor = AppColors.SurfaceLight,
@@ -197,7 +200,7 @@ public sealed class DashboardView : KryptonPanel
 
     private static Control CreateTile(string title, Label value)
     {
-        var panel = new Panel
+        var panel = new AvionicsPanel
         {
             Dock = DockStyle.Fill,
             BackColor = AppColors.Surface,
@@ -218,7 +221,7 @@ public sealed class DashboardView : KryptonPanel
 
     private Control CreateCommunityPanel()
     {
-        var panel = new Panel
+        var panel = new AvionicsPanel
         {
             Dock = DockStyle.Fill,
             BackColor = AppColors.Surface,
@@ -227,15 +230,15 @@ public sealed class DashboardView : KryptonPanel
 
         panel.Controls.Add(new Label
         {
-            Text = "Community folder",
+            Text = "COMMUNITY FOLDER / LINK DESTINATION",
             Font = AppFonts.Title,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
             Location = new Point(20, 18)
         });
 
-        pathLabel.Font = AppFonts.Normal;
-        pathLabel.ForeColor = AppColors.SecondaryText;
+        pathLabel.Font = AppFonts.Readout;
+        pathLabel.ForeColor = AppColors.Cyan;
         pathLabel.AutoEllipsis = true;
         pathLabel.Location = new Point(20, 57);
         pathLabel.Size = new Size(650, 58);
@@ -246,20 +249,10 @@ public sealed class DashboardView : KryptonPanel
         scanStatusLabel.AutoSize = true;
         scanStatusLabel.Location = new Point(20, 126);
 
-        scanButton.Text = "Quick Scan";
+        scanButton.Text = "QUICK SCAN";
         scanButton.Size = new Size(126, 40);
         scanButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        scanButton.FlatStyle = FlatStyle.Flat;
-        scanButton.BackColor = AppColors.AccentDark;
-        scanButton.ForeColor = Color.White;
-        scanButton.Font = AppFonts.Button;
-        scanButton.Cursor = Cursors.Hand;
-        scanButton.TabStop = false;
-        scanButton.UseVisualStyleBackColor = false;
-        scanButton.FlatAppearance.BorderColor = AppColors.Accent;
-        scanButton.FlatAppearance.BorderSize = 1;
-        scanButton.FlatAppearance.MouseOverBackColor = AppColors.Accent;
-        scanButton.FlatAppearance.MouseDownBackColor = AppColors.AccentDark;
+        ThemeService.StyleStandardButton(scanButton, primary: true);
         scanButton.Click += ScanButton_Click;
 
         panel.Controls.AddRange([pathLabel, scanStatusLabel, scanButton]);
@@ -341,7 +334,7 @@ public sealed class DashboardView : KryptonPanel
         finally
         {
             scanButton.Enabled = true;
-            scanButton.Text = "Quick Scan";
+            scanButton.Text = "QUICK SCAN";
         }
     }
 
@@ -349,7 +342,7 @@ public sealed class DashboardView : KryptonPanel
     {
         Text = "—",
         Font = AppFonts.DashboardValue,
-        ForeColor = AppColors.Text,
+        ForeColor = AppColors.Cyan,
         AutoSize = true
     };
 

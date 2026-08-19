@@ -1,6 +1,9 @@
 using Krypton.Toolkit;
 using MSFS2024AddonManager.Models;
 using MSFS2024AddonManager.Services;
+using MSFS2024AddonManager.UI.Controls;
+using MSFS2024AddonManager.UI.Themes;
+using ThemeService = MSFS2024AddonManager.UI.Themes.ThemeService;
 using AppColors = MSFS2024AddonManager.UI.Colors.Colors;
 using AppFonts = MSFS2024AddonManager.UI.Fonts.Fonts;
 
@@ -55,9 +58,9 @@ public sealed class ProfilesView : KryptonPanel
         };
         panel.Controls.Add(new Label
         {
-            Text = "Profiles",
+            Text = "PROFILES / ADDON LOADOUTS",
             Font = AppFonts.Header,
-            ForeColor = AppColors.Text,
+            ForeColor = AppColors.Accent,
             AutoSize = true,
             Location = new Point(0, 0)
         });
@@ -74,7 +77,7 @@ public sealed class ProfilesView : KryptonPanel
 
     private Control CreateCommandBar()
     {
-        var panel = new Panel
+        var panel = new AvionicsPanel
         {
             Dock = DockStyle.Fill,
             BackColor = AppColors.Surface,
@@ -84,6 +87,7 @@ public sealed class ProfilesView : KryptonPanel
         profileNameTextBox.CueHint.CueHintText = "New profile name...";
         profileNameTextBox.Location = new Point(14, 17);
         profileNameTextBox.Size = new Size(330, 34);
+        ThemeService.StyleTextBox(profileNameTextBox);
         profileNameTextBox.KeyDown += (_, eventArgs) =>
         {
             if (eventArgs.KeyCode != Keys.Enter)
@@ -315,10 +319,11 @@ public sealed class ProfilesView : KryptonPanel
     private Control CreateProfileCard(AddonProfile profile)
     {
         bool isActive = collection.ActiveProfileId == profile.Id;
-        var card = new Panel
+        var card = new AvionicsPanel
         {
             Size = new Size(340, 238),
-            BackColor = isActive ? AppColors.SurfaceLight : AppColors.Surface,
+            BackColor = isActive ? AppColors.Selection : AppColors.Surface,
+            BorderColor = isActive ? AppColors.Accent : AppColors.Border,
             Margin = new Padding(0, 0, 16, 16)
         };
 
@@ -360,14 +365,19 @@ public sealed class ProfilesView : KryptonPanel
             () => ActivateProfile(profile));
         activateButton.Location = new Point(20, 178);
         activateButton.Enabled = !isActive && !applyInProgress;
+        ThemeService.StyleSecondaryButton(activateButton);
 
         KryptonButton deleteButton = CreateButton(
             "Delete",
             () => DeleteProfile(profile));
         deleteButton.Location = new Point(136, 178);
         deleteButton.Enabled = !applyInProgress;
-        deleteButton.StateCommon.Back.Color1 = AppColors.SurfaceLight;
-        deleteButton.StateCommon.Back.Color2 = AppColors.SurfaceLight;
+        ThemeService.StyleSecondaryButton(deleteButton);
+        deleteButton.StateCommon.Back.Color1 = AppColors.ErrorDark;
+        deleteButton.StateCommon.Back.Color2 = AppColors.ErrorDark;
+        deleteButton.StateCommon.Border.Color1 = AppColors.Error;
+        deleteButton.StateCommon.Border.Color2 = AppColors.Error;
+        deleteButton.StateCommon.Content.ShortText.Color1 = AppColors.Error;
 
         card.Controls.AddRange([applyButton, activateButton, deleteButton]);
         return card;
@@ -377,13 +387,10 @@ public sealed class ProfilesView : KryptonPanel
     {
         var button = new KryptonButton
         {
-            Text = text,
+            Text = text.ToUpperInvariant(),
             Size = new Size(104, 38)
         };
-        button.StateCommon.Back.Color1 = AppColors.Accent;
-        button.StateCommon.Back.Color2 = AppColors.Accent;
-        button.StateCommon.Content.ShortText.Color1 = Color.White;
-        button.StateCommon.Content.ShortText.Font = AppFonts.Button;
+        ThemeService.StylePrimaryButton(button);
         button.Click += (_, _) => action();
         return button;
     }
