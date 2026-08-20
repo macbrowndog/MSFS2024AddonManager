@@ -349,7 +349,7 @@ public sealed class DashboardView : KryptonPanel
     private static Label CreateCategoryValueLabel() => new()
     {
         Text = "—",
-        Font = AppFonts.Title,
+        Font = AppFonts.CategoryValue,
         ForeColor = AppColors.Success,
         AutoSize = true
     };

@@ -88,7 +88,8 @@ public static class ThemeService
     {
         treeView.BackColor = AppColors.Navigation;
         treeView.ForeColor = AppColors.Cyan;
-        treeView.Font = AppFonts.Readout;
+        treeView.Font = AppFonts.LibraryTree;
+        treeView.ItemHeight = 24;
         treeView.BorderStyle = BorderStyle.FixedSingle;
         treeView.LineColor = AppColors.Border;
     }

@@ -23,13 +23,19 @@ public static class Fonts
         CreateTechnical(10f, FontStyle.Regular);
 
     public static readonly Font DashboardValue =
-        CreateTechnical(24f, FontStyle.Regular);
+        CreateTechnical(38f, FontStyle.Bold);
+
+    public static readonly Font CategoryValue =
+        CreateTechnical(26f, FontStyle.Bold);
 
     public static readonly Font Instrument =
         CreateTechnical(11f, FontStyle.Bold);
 
     public static readonly Font Readout =
         CreateTechnical(12f, FontStyle.Regular);
+
+    public static readonly Font LibraryTree =
+        CreateTechnical(15f, FontStyle.Regular);
 
     private static Font CreateInterface(float pixelSize, FontStyle style)
     {

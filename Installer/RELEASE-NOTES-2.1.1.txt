@@ -1,0 +1,30 @@
+MSFS 2024 ADDONS MANAGER
+Version 2.1.1
+Andrew Brown © 2026
+
+VERSION 2.1.1 HIGHLIGHTS
+------------------------
+- Enlarges and bolds the primary dashboard values in the Community,
+  Libraries, Enabled, and Disabled summary boxes.
+- Enlarges and bolds the package totals in all enabled-category boxes.
+- Increases the Library folder tree font and row spacing for easier reading
+  without changing the compact typography elsewhere in the interface.
+
+FUNCTIONALITY AND SAFETY
+------------------------
+- All addon management, profile application, link-safety, simulator detection,
+  persistence, logging, and recovery behavior remains unchanged.
+- The complete automated test suite passes.
+
+DISTRIBUTION
+------------
+- Includes self-contained and framework-dependent Windows x64 downloads.
+- Includes SHA-256 checksums for release packages.
+- Release executables are Authenticode-signed when repository signing secrets
+  are configured; each archive states its signing status.
+
+IMPORTANT
+---------
+Close Microsoft Flight Simulator before changing enabled addons. Keep source
+libraries available while their addons are enabled, especially removable and
+network storage.
